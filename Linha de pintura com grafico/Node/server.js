@@ -135,8 +135,8 @@ function processPreviousDayFiles() {
     });
 }
 
-// Agendamento com node-cron para rodar a cada 6 horas
-cron.schedule('* * * * *', () => {
+// Agendamento com node-cron para rodar a cada 1 hora
+cron.schedule('0 */1 * * *', () => {
     console.log('Tarefa do node-cron iniciada em:', new Date().toISOString());
     processPreviousDayFiles();
 }, {
