@@ -24,14 +24,12 @@ if (!fs.existsSync(logFilesDir)) fs.mkdirSync(logFilesDir, { recursive: true });
 
 // ---------------------------------------------------------------------------------------------------------------------------------------
 
-// Função para mover e zipar arquivos do dia anterior
+// Função para mover e zipar arquivos de todos os dias anteriores
 function processPreviousDayFiles() {
     console.log('Iniciando processPreviousDayFiles...');
     const currentDate = new Date();
-    const previousDate = new Date(currentDate);
-    previousDate.setDate(currentDate.getDate() - 1);
-    const previousDateStr = previousDate.toISOString().split("T")[0]; // Formato YYYY-MM-DD
-    console.log(`Data atual: ${currentDate.toISOString()}, Data anterior: ${previousDateStr}`);
+    const currentDateStr = currentDate.toISOString().split("T")[0]; // Formato YYYY-MM-DD
+    console.log(`Data atual: ${currentDateStr}`);
 
     // Diretório raiz dos logs, excluindo pastas temporárias
     const equipamentos = fs.readdirSync(logsDir).filter(file => {
@@ -41,45 +39,73 @@ function processPreviousDayFiles() {
     console.log(`Equipamentos encontrados: ${equipamentos.length > 0 ? equipamentos.join(', ') : 'Nenhum'}`);
 
     equipamentos.forEach(equipamentoId => {
-        const previousDayDir = path.join(logsDir, equipamentoId, previousDateStr);
-        console.log(`Verificando diretório: ${previousDayDir}`);
+        const equipamentoDir = path.join(logsDir, equipamentoId);
+        const dateDirs = fs.readdirSync(equipamentoDir).filter(dir => {
+            const dirPath = path.join(equipamentoDir, dir);
+            return fs.statSync(dirPath).isDirectory() && dir < currentDateStr; // Apenas dias anteriores
+        });
+        console.log(`Dias anteriores encontrados para ${equipamentoId}: ${dateDirs.length > 0 ? dateDirs.join(', ') : 'Nenhum'}`);
 
-        // Verifica se o diretório do dia anterior existe
-        if (fs.existsSync(previousDayDir)) {
-            console.log(`Diretório ${previousDayDir} existe, processando...`);
-            const tempDir = path.join(logsDir, `temp-${previousDateStr}`);
+        dateDirs.forEach(previousDateStr => {
+            const previousDayDir = path.join(equipamentoDir, previousDateStr);
+            console.log(`Verificando diretório: ${previousDayDir}`);
 
-            // Cria diretório temporário
-            if (!fs.existsSync(tempDir)) {
-                fs.mkdirSync(tempDir, { recursive: true });
-                console.log(`Diretório temporário criado: ${tempDir}`);
-            }
+            // Verifica se o diretório existe
+            if (fs.existsSync(previousDayDir)) {
+                console.log(`Diretório ${previousDayDir} existe, processando...`);
+                const tempDir = path.join(logsDir, `temp-${previousDateStr}`);
 
-            // Move arquivos para o diretório temporário
-            const files = fs.readdirSync(previousDayDir);
-            console.log(`Arquivos encontrados em ${previousDayDir}: ${files.length > 0 ? files.join(', ') : 'Nenhum'}`);
-
-            files.forEach(file => {
-                const oldPath = path.join(previousDayDir, file);
-                const newPath = path.join(tempDir, file);
-                try {
-                    fs.renameSync(oldPath, newPath);
-                    console.log(`Arquivo movido: ${oldPath} -> ${newPath}`);
-                } catch (err) {
-                    console.error(`Erro ao mover arquivo ${oldPath}:`, err);
+                // Cria diretório temporário
+                if (!fs.existsSync(tempDir)) {
+                    fs.mkdirSync(tempDir, { recursive: true });
+                    console.log(`Diretório temporário criado: ${tempDir}`);
                 }
-            });
 
-            // Zipa arquivos e salva na pasta logfiles, se houver arquivos
-            if (files.length > 0) {
-                const outputZipPath = path.join(logFilesDir, `${equipamentoId}-${previousDateStr}.zip`);
-                console.log(`Criando ZIP em: ${outputZipPath}`);
-                const output = fs.createWriteStream(outputZipPath);
-                const archive = archiver('zip', { zlib: { level: 9 } });
+                // Move arquivos para o diretório temporário
+                const files = fs.readdirSync(previousDayDir);
+                console.log(`Arquivos encontrados em ${previousDayDir}: ${files.length > 0 ? files.join(', ') : 'Nenhum'}`);
 
-                output.on('close', () => {
-                    console.log(`ZIP concluído: ${outputZipPath}, tamanho: ${archive.pointer()} bytes`);
-                    // Remove o diretório temporário e o diretório do dia anterior após zipar
+                files.forEach(file => {
+                    const oldPath = path.join(previousDayDir, file);
+                    const newPath = path.join(tempDir, file);
+                    try {
+                        fs.renameSync(oldPath, newPath);
+                        console.log(`Arquivo movido: ${oldPath} -> ${newPath}`);
+                    } catch (err) {
+                        console.error(`Erro ao mover arquivo ${oldPath}:`, err);
+                    }
+                });
+
+                // Zipa arquivos e salva na pasta logfiles, se houver arquivos
+                if (files.length > 0) {
+                    const outputZipPath = path.join(logFilesDir, `${equipamentoId}-${previousDateStr}.zip`);
+                    console.log(`Criando ZIP em: ${outputZipPath}`);
+                    const output = fs.createWriteStream(outputZipPath);
+                    const archive = archiver('zip', { zlib: { level: 9 } });
+
+                    output.on('close', () => {
+                        console.log(`ZIP concluído: ${outputZipPath}, tamanho: ${archive.pointer()} bytes`);
+                        // Remove o diretório temporário e o diretório do dia anterior após zipar
+                        try {
+                            fs.rmSync(tempDir, { recursive: true, force: true });
+                            console.log(`Diretório temporário ${tempDir} removido`);
+                            fs.rmSync(previousDayDir, { recursive: true, force: true });
+                            console.log(`Diretório do dia anterior ${previousDayDir} removido`);
+                        } catch (err) {
+                            console.error(`Erro ao remover diretórios:`, err);
+                        }
+                    });
+
+                    archive.on('error', (err) => {
+                        console.error('Erro ao zipar arquivos:', err);
+                    });
+
+                    archive.pipe(output);
+                    archive.directory(tempDir, false);
+                    archive.finalize();
+                } else {
+                    console.log('Nenhum arquivo para processar, removendo diretórios...');
+                    // Remove os diretórios mesmo sem arquivos
                     try {
                         fs.rmSync(tempDir, { recursive: true, force: true });
                         console.log(`Diretório temporário ${tempDir} removido`);
@@ -88,30 +114,11 @@ function processPreviousDayFiles() {
                     } catch (err) {
                         console.error(`Erro ao remover diretórios:`, err);
                     }
-                });
-
-                archive.on('error', (err) => {
-                    console.error('Erro ao zipar arquivos:', err);
-                });
-
-                archive.pipe(output);
-                archive.directory(tempDir, false);
-                archive.finalize();
-            } else {
-                console.log('Nenhum arquivo para processar, removendo diretórios...');
-                // Remove os diretórios mesmo sem arquivos
-                try {
-                    fs.rmSync(tempDir, { recursive: true, force: true });
-                    console.log(`Diretório temporário ${tempDir} removido`);
-                    fs.rmSync(previousDayDir, { recursive: true, force: true });
-                    console.log(`Diretório do dia anterior ${previousDayDir} removido`);
-                } catch (err) {
-                    console.error(`Erro ao remover diretórios:`, err);
                 }
+            } else {
+                console.log(`Diretório ${previousDayDir} não existe, pulando...`);
             }
-        } else {
-            console.log(`Diretório ${previousDayDir} não existe, pulando...`);
-        }
+        });
     });
 
     // Limpeza de pastas temporárias antigas
