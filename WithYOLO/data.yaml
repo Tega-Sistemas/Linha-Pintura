@@ -1,6 +1,0 @@
-train: C:/Users/NTB_ACER_DEV/Desktop/Testar/dataset/images/train
-val: C:/Users/NTB_ACER_DEV/Desktop/Testar/dataset/images/val
-test: C:/Users/NTB_ACER_DEV/Desktop/Testar/dataset/images/test
-
-nc: 1  # Número de classes
-names: ['chapa_de_madeira']  # Nome(s) das classes
