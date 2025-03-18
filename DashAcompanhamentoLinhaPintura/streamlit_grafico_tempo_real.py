@@ -410,12 +410,25 @@ if periodo_inicio:
     # Fazer merge para preencher minutos sem registro como NaN
     df_final = df_todos.merge(last_read, on="LinhaPinturaUtilizacaoDtHr", how="left")
 
+    minutos_parados = (df_final["LinhaPinturaUtilizacaoParada"] == 1).sum()
+    
     # Preencher valores NaN em 'LinhaPinturaUtilizacaoParada' com 1 (sem registro = parada)
     df_final["LinhaPinturaUtilizacaoParada"].fillna(1, inplace=True)
 
     # Contar minutos trabalhados e parados
     minutos_trabalhados = (df_final["LinhaPinturaUtilizacaoParada"] == 0).sum()
-    minutos_parados = (df_final["LinhaPinturaUtilizacaoParada"] == 1).sum()
+    
+    # minutos_parados = len(df_final["LinhaPinturaUtilizacaoParada"])
+
+    # continue_count = False
+    # count_all = True
+    # for val in list(df_final["LinhaPinturaUtilizacaoParada"])[::-1]:
+    #     minutos_parados-=1
+    #     if val == 1:
+    #          break
+        
+
+
 
     # query_dados = f"""
     #     SELECT LinhaPinturaUtilizacaoDtHr, LinhaPinturaUtilizacaoPerOcup, LinhaPinturaUtilizacaoParada
@@ -481,10 +494,11 @@ if periodo_inicio:
             st.markdown('**Tempo Trabalhando:**')
             st.markdown(f"<h1 style='text-align: center;'>{math.floor(minutos_trabalhados / 60)}:{minutos_trabalhados % 60:02}</h1>",unsafe_allow_html=True)
         with st.container(border=True):
-            st.markdown('**Ocupação média por Tempo trabalhando:**')
+            st.markdown('**Ocupação média durante Tempo trabalhando:**')
             st.markdown(f"<h1 style='text-align: center;'>{percentPerHoraTrab:.2f}%</h1>",unsafe_allow_html=True)
         with st.container(border=True):
             st.markdown('**Tempo Parado:**')
+            minutos_parados = int((datetime.now() - datetime.today().replace(hour=5,minute=0,second=0)).total_seconds() / 60)
             st.markdown(f"<h1 style='text-align: center;'>{math.floor(minutos_parados / 60)}:{minutos_parados % 60:02}</h1>",unsafe_allow_html=True)
     with col2:
         st.markdown('## Indicativo de uso da linha de pintura da esteira no dia {} até {}'.format(read_date_ini.strftime('%d/%m/%Y'),(read_date_fin-timedelta(days=1)).strftime('%d/%m/%Y')))
