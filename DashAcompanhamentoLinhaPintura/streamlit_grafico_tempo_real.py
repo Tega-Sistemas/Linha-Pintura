@@ -284,6 +284,7 @@ def create_bar_graph(display_data,show_date_start,show_date_end):
         #title="Gráfico de Barras ",
         yaxis=dict(
             zeroline=True,
+            range=[-100, 100],
             zerolinewidth=1,
             zerolinecolor='grey'
         ),
@@ -483,22 +484,24 @@ if periodo_inicio:
     
     col1,col2 = st.columns([2,10])
     with col1:
+        minutos_parados = int((datetime.now() - datetime.today().replace(hour=5,minute=0,second=0)).total_seconds() / 60)
         with st.container(border=True):
             st.markdown('**Total de Tempo:**')
             #minutos_total = len(df_final[df_final['LinhaPinturaUtilizacaoParada'] == 0])
             old_total_min = len(df_final)
             #min_total
-            st.markdown(f"<h1 style='text-align: center;'>{math.floor( datetime.now().hour)}:{int(datetime.now().minute % 60):02}</h1>",unsafe_allow_html=True)
+            st.markdown(f"<h1 style='text-align: center;'>{math.floor(minutos_parados/60)}:{int(datetime.now().minute % 60):02}</h1>",unsafe_allow_html=True)
             #:red[Texto Exemplo]
         with st.container(border=True):
             st.markdown('**Tempo Trabalhando:**')
             st.markdown(f"<h1 style='text-align: center;'>{math.floor(minutos_trabalhados / 60)}:{minutos_trabalhados % 60:02}</h1>",unsafe_allow_html=True)
+            minutos_parados -= minutos_trabalhados
         with st.container(border=True):
             st.markdown('**Ocupação média durante Tempo trabalhando:**')
             st.markdown(f"<h1 style='text-align: center;'>{percentPerHoraTrab:.2f}%</h1>",unsafe_allow_html=True)
         with st.container(border=True):
             st.markdown('**Tempo Parado:**')
-            minutos_parados = int((datetime.now() - datetime.today().replace(hour=5,minute=0,second=0)).total_seconds() / 60)
+            
             st.markdown(f"<h1 style='text-align: center;'>{math.floor(minutos_parados / 60)}:{minutos_parados % 60:02}</h1>",unsafe_allow_html=True)
     with col2:
         st.markdown('## Indicativo de uso da linha de pintura da esteira no dia {} até {}'.format(read_date_ini.strftime('%d/%m/%Y'),(read_date_fin-timedelta(days=1)).strftime('%d/%m/%Y')))
