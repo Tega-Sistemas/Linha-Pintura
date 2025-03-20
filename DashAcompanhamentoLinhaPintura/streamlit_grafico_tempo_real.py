@@ -35,54 +35,291 @@ def retorna_dia_da_semana(data): # começando no domingo
     # Mapeia para: Domingo = 1, Segunda = 2, ..., Sábado = 7
     return (dia_iso % 7) + 1
 
+# def get_back_days(show_date_start,show_date_end):
+#     dias_periodo = []
+#     if DIA_SEM_ATUAL != 1 and show_date_end - timedelta(days=1) == datetime.now():
+#         dias_periodo.append(show_date_start - timedelta(days=1))
+#     else:
+#         extra_day = 1
+
+#     dias_atras = ((show_date_end - timedelta(days=1)) - show_date_start).days + extra_day
+#     if dias_atras:
+#         for i in range(dias_atras):
+#             process_date = show_date_end - timedelta(days=1) - timedelta(days=i+1 - extra_day)
+#             if retorna_dia_da_semana(process_date) != 1:
+#                 dias_periodo.append(process_date)
+#     return dias_periodo
+
+def subtract_intervals(interval, subtract_list):
+    """
+    Subtrai uma lista de intervalos (subtract_list) de um intervalo (interval),
+    retornando os pedaços restantes fora dos intervalos subtraídos.
+    Cada intervalo é uma lista [inicio, fim] com objetos datetime.
+    """
+    remaining = [interval]  # Lista inicial com o intervalo a ser ajustado
+
+    for sub in subtract_list:
+        new_remaining = []
+        for rem in remaining:
+            # Sem sobreposição
+            if rem[1] <= sub[0] or rem[0] >= sub[1]:
+                new_remaining.append(rem)
+            # Intervalo completamente dentro do intervalo de pausa (removido)
+            elif sub[0] <= rem[0] and rem[1] <= sub[1]:
+                continue
+            # Sobreposição à direita: ajustar o fim para o início da pausa
+            elif rem[0] < sub[0] <= rem[1] <= sub[1]:
+                new_remaining.append([rem[0], sub[0]])
+            # Sobreposição à esquerda: ajustar o início para o fim da pausa
+            elif sub[0] <= rem[0] < sub[1] <= rem[1]:
+                new_remaining.append([sub[1], rem[1]])
+            # Intervalo de zeros atravessa a pausa: dividir em dois
+            elif rem[0] < sub[0] < sub[1] < rem[1]:
+                new_remaining.append([rem[0], sub[0]])  # Antes da pausa
+                new_remaining.append([sub[1], rem[1]])  # Depois da pausa
+        remaining = new_remaining
+    
+    return remaining
+
+def get_inicio_fim_turno(day):
+    dia_semana = retorna_dia_da_semana(day)
+    inicio_trab_dia = dados_intervalos[dia_semana]['TurnoProdutivoHrEntrada'].replace(
+            year=day.year, month=day.month, day=day.day
+        )
+    fim_trab_dia = dados_intervalos[dia_semana]['TurnoProdutivoHrSaida'].replace(
+            year=day.year, month=day.month, day=day.day
+        )
+    return inicio_trab_dia, fim_trab_dia
+
+def get_dados_turno(day):
+    dia_semana = retorna_dia_da_semana(day)
+    inicio_trab_dia = dados_intervalos[dia_semana]['TurnoProdutivoHrEntrada'].replace(
+            year=day.year, month=day.month, day=day.day
+        )
+    fim_trab_dia = dados_intervalos[dia_semana]['TurnoProdutivoHrSaida'].replace(
+            year=day.year, month=day.month, day=day.day
+        )
+    ini_interv_1 = dados_intervalos[dia_semana]['TurnoProdutivoHrSaiIntervalo1'].replace(
+            year=day.year, month=day.month, day=day.day
+        )
+    fim_interv_1 = dados_intervalos[dia_semana]['TurnoProdutivoHrEntIntervalo1'].replace(
+            year=day.year, month=day.month, day=day.day
+        )
+    ini_interv_2 = dados_intervalos[dia_semana]['TurnoProdutivoHrSaiIntervalo2'].replace(
+            year=day.year, month=day.month, day=day.day
+        )
+    fim_interv_2 = dados_intervalos[dia_semana]['TurnoProdutivoHrEntIntervalo2'].replace(
+            year=day.year, month=day.month, day=day.day
+        )
+    return inicio_trab_dia, fim_trab_dia, ini_interv_1, fim_interv_1, ini_interv_2, fim_interv_2
+
+def get_pause_intervals(datas):
+    unique_days = sorted(set(d.date() for d in datas))  # Dias únicos em ordem
+    pause_intervals = []
+
+    for day in unique_days:
+        dia_semana = retorna_dia_da_semana(day)
+        ini_interv_1 = dados_intervalos[dia_semana]['TurnoProdutivoHrSaiIntervalo1'].replace(
+            year=day.year, month=day.month, day=day.day
+        )
+        fim_interv_1 = dados_intervalos[dia_semana]['TurnoProdutivoHrEntIntervalo1'].replace(
+            year=day.year, month=day.month, day=day.day
+        )
+        ini_interv_2 = dados_intervalos[dia_semana]['TurnoProdutivoHrSaiIntervalo2'].replace(
+            year=day.year, month=day.month, day=day.day
+        )
+        fim_interv_2 = dados_intervalos[dia_semana]['TurnoProdutivoHrEntIntervalo2'].replace(
+            year=day.year, month=day.month, day=day.day
+        )
+
+        # Adicionar intervalos de pausa
+        pause_intervals.append([ini_interv_1, fim_interv_1])
+        pause_intervals.append([ini_interv_2, fim_interv_2])
+
+    return pause_intervals
+
+
 def encontrar_intervalos_de_zeros(vetor,datas=[]):
-    intervalos = []
+    intervalos_brutos = []
     inicio = None
-    #print('\n\n##############')
 
     for i, valor in enumerate(vetor):
         if valor <= 2:
             if ((i and (datas[i] - datas[i-1]).total_seconds() <= 1 ) or inicio is None):
-                #print(f'\t\t{i} ({(datas[i] - datas[i-1]).total_seconds()}) {datas[i]} {(i and (datas[i] - datas[i-1]).total_seconds() <= 1 )} {inicio }')
                 if inicio is None:
-                    #print(f'\nABRINDO EM {i}')#(f'DIF DATAS: {datas[i]} - {datas[i-1]} {(datas[i] - datas[i-1]).total_seconds()}')
                     inicio = i  # Marca o início de uma sequência de zeros
             elif inicio is not None:
                 add_time = timedelta(milliseconds=500)
-                intervalos.append([datas[inicio] -add_time, datas[i - 1] + add_time])  # Fim da sequência de zeros
+                intervalos_brutos.append([datas[inicio] -add_time, datas[i - 1] + add_time])  # Fim da sequência de zeros
                 inicio = i
-                #print(f'\n\tFECHANDO EM {i} {datas[i - 1] + add_time}')
 
         else:
             if inicio is not None:
                 add_time = timedelta(milliseconds=500)
-                intervalos.append([datas[inicio] -add_time, datas[i - 1] + add_time])  # Fim da sequência de zeros
+                intervalos_brutos.append([datas[inicio] - add_time, datas[i - 1] + add_time])  # Fim da sequência de zeros
                 inicio = None
-                #print(f'\n\tFECHANDO EM {i} {datas[i - 1] + add_time}')
-                #exit()
 
     # Verifica se há uma sequência de zeros no final do vetor
     if inicio is not None:
         add_time = timedelta(seconds=0)
         if datas[inicio] == datas[len(vetor) - 1]:
             add_time = timedelta(milliseconds=500)
-        intervalos.append([datas[inicio], datas[len(vetor) - 1]])
-    return intervalos
+        intervalos_brutos.append([datas[inicio] - add_time, datas[len(vetor) - 1] + add_time])
 
-def detectar_intervalos_faltante(x,porcentagem=[]):
-    intervalos = []
+
+    ################ REMOVER INTERVALOS EM PAUSAS
+    # Passo 2:
+    pause_intervals = get_pause_intervals(datas)
+    
+    # Passo 3: Ajustar os intervalos de zeros em relação às pausas
+    intervalos_ajustados = []
+    for intervalo in intervalos_brutos:
+        ajustados = subtract_intervals(intervalo, pause_intervals)
+        intervalos_ajustados.extend(ajustados)
+
+    #intervalos_ajustados = intervalos_brutos
+
+    return intervalos_ajustados
+
+def detectar_intervalos_faltante(datas,porcentagem=[]):
+    intervalos_brutos = []
     
     # Iterar sobre o vetor para encontrar os intervalos
-    for i in range(1, len(x)):
+    for i in range(1, len(datas)):
         # Calcular a diferença entre a data i e a data anterior (i-1)
-        diff = (x[i] - x[i-1]).total_seconds()
+        diff = (datas[i] - datas[i-1]).total_seconds()
         
         # Se a diferença for maior que 1 segundo, adicionar ao intervalo
-        if diff > 1 and x[i].day - x[i-1].day == 0: # or porcentagem[i-1] <= 2 or porcentagem[i] <= 2:
-            intervalos.append((x[i-1] + timedelta(seconds=0.5), x[i] - timedelta(seconds=0.5)))
+        if diff > 1 and datas[i].day - datas[i-1].day == 0: # or porcentagem[i-1] <= 2 or porcentagem[i] <= 2:
+            intervalos_brutos.append((datas[i-1] + timedelta(seconds=0.5), datas[i] - timedelta(seconds=0.5)))
 
-    return intervalos
+    # Passo 2
+    pause_intervals = get_pause_intervals(datas)
 
+    # Passo 3
+    intervalos_ajustados = []
+    for intervalo in intervalos_brutos:
+        ajustados = subtract_intervals(intervalo, pause_intervals)
+        intervalos_ajustados.extend(ajustados)
+
+    return intervalos_ajustados
+
+def get_ultimo_do_dia(dia,registros):
+    data = dia.date()
+    registros_data = registros[registros['date'].dt.date == data]
+
+    # Pegar o registro mais recente (último)
+    ultimo_do_dia = registros_data.sort_values(by='date').iloc[-1][0]
+
+    return pd.Timestamp(ultimo_do_dia)
+
+def get_primeiro_do_dia(dia,registros):
+    data = dia.date()
+    registros_data = registros[registros['date'].dt.date == data]
+
+    # Pegar o registro mais recente (último)
+    primeiro_do_dia = registros_data.sort_values(by='date').iloc[0][0]
+
+    return pd.Timestamp(primeiro_do_dia)#pd.Timestamp(primeiro_do_dia)
+
+
+# Função para encontrar subintervalos onde perOcup > 2
+def find_intervals_above_threshold(df, threshold=2):
+    occupied_intervals = []
+    empty_intervals = []
+    in_occupied = False
+    in_empty = False
+    start_occupied = None
+    start_empty = None
+
+    first_processed = False
+
+    for i in range(len(df)):
+        
+        current_time = df['date'].iloc[i]
+        current_perOcup = df['perOcup'].iloc[i]
+        # Transição para intervalo ocupado (perOcup > 2)
+        last_time = df['date'].iloc[i-1] if i > 0 else current_time
+        print(type(last_time),type(current_time),type(timedelta(seconds=1)))
+        if current_perOcup > threshold and current_time - last_time <= timedelta(seconds=1):
+            
+            if not in_occupied:
+                print(f'{i} - 1')
+                # Fechar intervalo vazio anterior, se existir e atender à duração mínima
+                if in_empty and start_empty is not None:
+                    #duration = (current_time - start_empty).total_seconds()
+                    #if duration > min_duration:
+                    empty_intervals.append((start_empty, current_time - timedelta(seconds=0.5)))
+                in_empty = False
+                in_occupied = True
+                start_occupied = current_time - timedelta(seconds=0.5) if i != 0 else current_time
+        # Transição para intervalo vazio (perOcup <= 2)
+        else:
+            
+            if in_occupied:
+                # Fechar intervalo ocupado
+
+                add_time = timedelta(seconds=-0.5)
+                if start_occupied == current_time or i == len(df) - 1: # TRATAR DUPLICATA
+                    add_time = timedelta(seconds=0.5)
+                occupied_intervals.append((start_occupied, current_time + add_time))
+                in_occupied = False
+            if not in_empty:
+                print(f'{i} - 2')
+                in_empty = True
+                start_empty = current_time - timedelta(seconds=0.5) if i != 0 else current_time
+        #print(current_time - last_time)
+    # Fechar o último intervalo, se ainda estiver aberto
+    last_time = df['date'].iloc[-1]
+    if in_occupied:
+        occupied_intervals.append((start_occupied - timedelta(seconds=0.5), last_time))
+    elif in_empty and start_empty is not None:
+        #duration = (last_time - start_empty).total_seconds(
+        empty_intervals.append((start_empty, last_time))
+
+    return occupied_intervals, empty_intervals
+
+def get_intervalos_positivos_saidas(registros):
+    datas = registros['date']
+    print(registros)
+
+    unique_days = sorted(set(datetime.fromtimestamp(d.timestamp()).date() for d in datas))
+    
+    all_occupied_intervals = []
+    all_empty_intervals = []
+
+    for day in unique_days:
+        print(f'PROCESSANDO DIA {day}')
+        #get_pause_intervals(dt)
+        
+        inicio_turno_dia, fim_turno_dia,iInterv1,fInterv1,iInterv2,fInterv2 = get_dados_turno(day)
+        inicio_dia = datetime(year=day.year,month=day.month,day=day.day,hour=0,minute=0,second=0)
+        fim_dia = datetime(year=day.year,month=day.month,day=day.day,hour=23,minute=59,second=59)
+        print(inicio_dia, inicio_turno_dia,iInterv1,fInterv1,iInterv2,fInterv2,fim_turno_dia, fim_dia)
+
+        intervals_of_interest = [
+            (inicio_dia, inicio_turno_dia),  # Começo do dia até inicio_turno_dia
+            (iInterv1, fInterv1),                                    # iInterv1 até fInterv1
+            (iInterv2, fInterv2),                                    # iInterv2 até fInterv2
+            (fim_turno_dia, fim_dia)     # fim_turno_dia até fim do dia
+        ]
+        for start, end in intervals_of_interest:
+            # Filtrar dados dentro do intervalo atual
+            mask = (registros['date'] >= start) & (registros['date'] <= end)
+            df_interval = registros[mask]
+            
+            if not df_interval.empty:
+                # Encontrar subintervalos onde perOcup > 2 e perOcup <= 2
+                occupied, empty = find_intervals_above_threshold(df_interval)
+                all_occupied_intervals.extend(occupied)
+                all_empty_intervals.extend(empty)
+            else:
+                # Se não há dados no intervalo, verificar duração e adicionar como vazio
+                duration = (end - start).total_seconds()
+                if duration > 1:
+                    all_empty_intervals.append((start, end))
+    
+    return all_occupied_intervals, all_empty_intervals
 ### Para variável last_read['LinhaPinturaUtilizacaoParada'].to_list()
 def encontrar_intervalos_de_uns(vetor):
     intervalos = []
@@ -152,19 +389,16 @@ def create_graph(display_data,show_date_start,show_date_end):
 
     dias_atras = ((show_date_end - timedelta(days=1)) - show_date_start).days + extra_day
     
-    
     if dias_atras:
         for i in range(dias_atras):
             process_date = show_date_end - timedelta(days=1) - timedelta(days=i+1 - extra_day)
             if retorna_dia_da_semana(process_date) != 1:
                 dias_periodo.append(process_date)
-    ########### CONTINUAR ABAIXO
-
-    
+    #####################
 
 
     #Adicionar zeros nas posições desses intervalos desativados
-    for x1,x2 in intervalos_desativado:
+    for x1, x2 in intervalos_desativado:
         first = True
         #print(f'PROCESSANDO {x1} e {x2}')
         for indt,dt in enumerate(display_data['date']):
@@ -221,31 +455,50 @@ def create_graph(display_data,show_date_start,show_date_end):
     
     display_data = display_data.sort_values(by='date').reset_index(drop=True)
 
+    # Adicionar intervalo 
     for dtini in datas_inicio:
         indice_ini = display_data.index[display_data['date'] == dtini]
-        if retorna_dia_da_semana(dtini) != 7:
-            new_interval = [pd.Timestamp(dtini), display_data.loc[indice_ini + 1,'date'].iloc[0]]
+        inicio_turno_dia, fim_turno_dia = get_inicio_fim_turno(dtini)
 
-            print('\t-1>>>{}'.format(new_interval))
+        data_ini = pd.Timestamp(dtini)
+        if retorna_dia_da_semana(dtini) != 7 and inicio_turno_dia >= get_primeiro_do_dia(dtini,display_data):
+            
+            modfy_time = timedelta(seconds=0)
+            if get_primeiro_do_dia(dtini,display_data) < inicio_turno_dia:
+               modfy_time = timedelta(seconds=0.5)
+            data_fim = display_data.loc[indice_ini + 1,'date'].iloc[0] - modfy_time
+
+            new_interval = [data_ini, data_fim]
+            #print('\t-1>>>{}'.format(new_interval))
             intervalos_desativado.append(new_interval)
+            display_data.loc[len(display_data)] = [data_fim,0]
     
-    
+    display_data = display_data.sort_values(by='date').reset_index(drop=True)
     for dtfim in datas_final:
         indice_fim = display_data.index[display_data['date'] == dtfim]
-        #if len(indice_fim) > 1:
-            #indice_fim = indice_fim[0]
-        print(indice_fim,type(indice_fim))
-        #if indice_fim > 0: # POR QUE RETORNA DOIS VALORES? REGISTROS DUPLICADOS ?
-        if indice_fim[0] > 0:
-            new_interval = [display_data.loc[indice_fim - 1,'date'].iloc[0], pd.Timestamp(dtfim)]
+        inicio_turno_dia, fim_turno_dia = get_inicio_fim_turno(dtfim)
 
-            print('\t-2>>>{}'.format(new_interval))
+        #print(indice_fim,type(indice_fim))
+        data_fim = pd.Timestamp(dtfim)
+        #print(f'COMPARANDO DIA: {get_ultimo_do_dia(dtfim,display_data)} com {fim_turno_dia}')
+        if indice_fim[0] > 0 and get_ultimo_do_dia(dtfim,display_data) <= fim_turno_dia:
+
+            modfy_time = timedelta(seconds=0)
+            #print(f'\tULTIMO DO DIA {dtfim} >> {get_ultimo_do_dia(dtfim,display_data)}')
+            if get_ultimo_do_dia(dtfim,display_data) > fim_turno_dia:
+                modfy_time = timedelta(seconds=0.5)
+            data_inicio = display_data.loc[indice_fim - 1,'date'].iloc[0] + modfy_time
+            
+            new_interval = [data_inicio, data_fim]
+
+            #print('\t-2>>>{}'.format(new_interval))
             if new_interval not in intervalos_desativado:
                 intervalos_desativado.append(new_interval)
-    
-    
-    #print(intervalos_desativado)
+                display_data.loc[len(display_data)] = [data_inicio,0]
+    display_data = display_data.sort_values(by='date').reset_index(drop=True)
     #####################    
+
+    intervalo_ativado_extra, intervalos_inativo_extra = get_intervalos_positivos_saidas(display_data)
 
     percentPerHoraTrab = calcular_media_porcentagem_por_tempo_trabalhando(display_data)
     
@@ -284,7 +537,43 @@ def create_graph(display_data,show_date_start,show_date_end):
         for x1, x2 in intervalos_desativado
     ]
 
-    print(f'TEMPO INICIO GRAFICO 1 {time() - START}')
+    # Criar retângulos para intervalos ativados em intervalos
+    shapes += [
+        {
+            "type": "rect",
+            "x0": x1, "x1": x2,
+            "y0": -100, "y1": 300,
+            "fillcolor": "mediumpurple",
+            "opacity": 0.3,
+            "layer": "below",
+            "line": {"width": 0}
+        }
+        for x1, x2 in intervalo_ativado_extra
+    ]
+
+    shapes += [
+        {
+            "type": "rect",
+            "x0": x1, "x1": x2,
+            "y0": -100, "y1": 300,
+            "fillcolor": "lightblue",
+            "opacity": 0.3,
+            "layer": "below",
+            "line": {"width": 0}
+        }
+        for x1, x2 in intervalos_inativo_extra
+    ]
+    
+
+    #print(f'TEMPO INICIO GRAFICO 1 {time() - START}')
+
+    fig.update_xaxes(
+        tickmode='auto',  # Modo automático para ajustar os ticks
+        dtick=3600000,   # Intervalo de 1 hora (em milissegundos)
+        #tickformat='%H:%M',  # Formato de exibição das horas
+        rangeslider_visible=True  # Adiciona um rangeslider para facilitar o zoom
+    )
+
 
     # Definir tamanho do y
     fig.update_layout(
@@ -538,12 +827,12 @@ def create_bar_graph(display_data,show_date_start,show_date_end):
 def create_graph_wrapper(display_data,show_date_start,show_date_end, q):
     fig, percentPerHoraTrab, display_data = create_graph(display_data,show_date_start,show_date_end)
     q.put((fig, percentPerHoraTrab, display_data))
-    print(f'TEMPO LEVADO GRAFICO 1 {time() - START}')
+    #print(f'TEMPO LEVADO GRAFICO 1 {time() - START}')
 
 def create_bar_graph_wrapper(display_data,show_date_start,show_date_end, q):
     fig_bar,min_total,min_trab,percent_trab_geral,min_parado,minutos_ligados = create_bar_graph(display_data,show_date_start,show_date_end)
     q.put((fig_bar,min_total,min_trab,percent_trab_geral,min_parado,minutos_ligados))
-    print(f'TEMPO LEVADO GRAFICO BARRA {time() - START}')
+    #print(f'TEMPO LEVADO GRAFICO BARRA {time() - START}')
 
 # Conectar ao MySQL
 # conn = mysql.connector.connect(
@@ -676,6 +965,8 @@ def display_no_data():
     st.date_input('Filtro Leitura',key='periodo_tempo')
 
 
+#st.json(dados_intervalos)
+
 if periodo_inicio:
     print(periodo_inicio,type(periodo_inicio))
     periodo_fim = datetime.combine(read_date_ini, datetime.min.time()).replace(hour=23,minute=59,second=59,microsecond=0)
@@ -703,7 +994,7 @@ if periodo_inicio:
     last_read["LinhaPinturaUtilizacaoDtHr"] = pd.to_datetime(last_read["LinhaPinturaUtilizacaoDtHr"])
 
     # Criar range completo de minutos
-    todos_minutos = pd.date_range(start=periodo_inicio, end=periodo_fim, freq='T')
+    todos_minutos = pd.date_range(start=periodo_inicio, end=periodo_fim, freq='min')
 
     # Criar DataFrame com todos os minutos
     df_todos = pd.DataFrame({"LinhaPinturaUtilizacaoDtHr": todos_minutos})
@@ -726,7 +1017,7 @@ if periodo_inicio:
 
     conn.close()
 
-    st.markdown(f'TEMPO LEVADO DEPOIS QUERY {time() - START}')
+    #st.markdown(f'TEMPO LEVADO DEPOIS QUERY {time() - START}')
 
     # REMOVER DUPLICATAS (mantém maior)
     # duplicatas = []
@@ -750,7 +1041,7 @@ if periodo_inicio:
         thread_graph = Thread(target=create_graph_wrapper, args=(display_data,read_date_ini,read_date_fin, q_graph))
         
 
-        st.markdown(f'TEMPO LEVADO ANTES THREAD {time() - START}')
+        #st.markdown(f'TEMPO LEVADO ANTES THREAD {time() - START}')
         # Iniciar as threads
         thread_graph.start()
         thread_bar.start()
@@ -763,7 +1054,7 @@ if periodo_inicio:
         fig, percentPerHoraTrab, display_data = q_graph.get()
         fig_bar, min_total, min_trab, percent_trab_geral, min_parado, minutos_ligados = q_bar.get()
 
-        st.markdown(f'TEMPO LEVADO DEPOIS THREAD {time() - START}')
+        # st.markdown(f'TEMPO LEVADO DEPOIS THREAD {time() - START}')
         col1,col2 = st.columns([2,10])
         with col1:
             minutos_desativados = int(min_total - minutos_parados - minutos_trabalhados)
@@ -794,6 +1085,9 @@ if periodo_inicio:
             with st.container(border=True):
                 st.markdown('**Tempo Desativado:**') # color: red; background-color:powderblue;
                 st.markdown(f"<h1 style='text-align: center; color: red; background-color:lightgray;'>{math.floor(minutos_desativados / 60)}:{minutos_desativados % 60:02}</h1>",unsafe_allow_html=True)
+                # Talvez utilizar:
+                #  :blue[texto]  :red-background[texto exemplo].
+                # Container não se adapta:
                 # f'''
                 # <div style="width: 300px; padding: 20px; border: 2px solid black; background-color: powderblue; text-align: center;">
                 #     <h1 style="color: red;">Olá</h1>
