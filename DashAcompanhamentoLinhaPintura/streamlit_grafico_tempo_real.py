@@ -463,13 +463,11 @@ def create_graph(display_data,show_date_start,show_date_end):
     
     display_data = display_data.sort_values(by='date').reset_index(drop=True)
 
-
     print(f'INTERVALOS DESATIVADOS 1 >>{intervalos_desativado}')
     # Adicionar intervalo 
     for dtini in datas_inicio:
         indice_ini = display_data.index[display_data['date'] == dtini]
         inicio_turno_dia, fim_turno_dia = get_inicio_fim_turno(dtini)
-
 
         data_ini = pd.Timestamp(dtini)
         if retorna_dia_da_semana(dtini) != 7 and inicio_turno_dia >= get_primeiro_do_dia(dtini,display_data):
@@ -481,14 +479,12 @@ def create_graph(display_data,show_date_start,show_date_end):
 
             inicio_trab_dia, fim_trab_dia, ini_interv_1, fim_interv_1, ini_interv_2, fim_interv_2 = get_dados_turno(data_fim)
 
-            
             if data_ini < fim_interv_1 and data_fim > ini_interv_1:
                 if data_fim > fim_interv_1:
                     new_extra_interval = [fim_interv_1,data_fim]
                     intervalos_desativado.append(new_extra_interval)
                 data_fim = pd.Timestamp(ini_interv_1)
                 
-
             # Talvez implementar intervalo 2
             # if data_fim > ini_interv_1 and data_fim < fim_interv_1:
             #     data_fim = pd.Timestamp(ini_interv_1)
@@ -631,10 +627,44 @@ def create_graph(display_data,show_date_start,show_date_end):
         rangeslider_visible=True  # Adiciona um rangeslider para facilitar o zoom
     )
 
+    #LEGENDAS Para simular legenda dos shapes
+    fig.add_trace(go.Scatter(
+        x=[None],  # Sem dados reais
+        y=[None],
+        mode='markers',
+        marker=dict(color='yellow', size=16),
+        name='Leitura < 2%',  # Nome da legenda
+        showlegend=True
+    ))
+    fig.add_trace(go.Scatter(
+        x=[None],  # Sem dados reais
+        y=[None],
+        mode='markers',
+        marker=dict(color='red', size=16),
+        name='Desligado',  # Nome da legenda
+        showlegend=True
+    ))
+    fig.add_trace(go.Scatter(
+        x=[None],  # Sem dados reais
+        y=[None],
+        mode='markers',
+        marker=dict(color='mediumpurple', size=16),
+        name='Ativo Extra',  # Nome da legenda
+        showlegend=True
+    ))
+    fig.add_trace(go.Scatter(
+        x=[None],  # Sem dados reais
+        y=[None],
+        mode='markers',
+        marker=dict(color='lightblue', size=16),
+        name='Vazio Extra',  # Nome da legenda
+        showlegend=True
+    ))
 
     # Definir tamanho do y
     fig.update_layout(
         shapes= shapes,
+        showlegend=True,
         yaxis=dict(range=[0, 100]),
         # xaxis=dict(
         #     tickmode="linear",
@@ -644,7 +674,14 @@ def create_graph(display_data,show_date_start,show_date_end):
         template="plotly_dark" if st.get_option("theme.base") == "dark" else "plotly",
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(color="white" if st.get_option("theme.base") == "dark" else "black")
+        font=dict(color="white" if st.get_option("theme.base") == "dark" else "black"),
+        legend=dict(
+                font=dict(
+                    size=18,  # Tamanho da fonte
+                    family="Arial",  # Família da fonte (opcional)
+                    color="black"  # Cor da fonte (opcional)
+                )
+            )
   # Define o eixo Y de 0 a 50
     )
     return fig, percentPerHoraTrab, display_data
@@ -876,7 +913,14 @@ def create_bar_graph(display_data,show_date_start,show_date_end):
         template="plotly_dark" if st.get_option("theme.base") == "dark" else "plotly",
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(color="white" if st.get_option("theme.base") == "dark" else "black")
+        font=dict(color="white" if st.get_option("theme.base") == "dark" else "black"),
+        legend=dict(
+                font=dict(
+                    size=18,  # Tamanho da fonte
+                    family="Arial",  # Família da fonte (opcional)
+                    color="black"  # Cor da fonte (opcional)
+                )
+            )
         #barmode='stack'  # Para que as posições definidas sejam respeitadas
     )
     return fig_bar, min_total, min_trab, percent_trab_geral, min_parado, minutos_ligados
