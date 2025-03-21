@@ -140,7 +140,7 @@ def encontrar_intervalos_ativos(vetor,datas=[]):
 
     for i, valor in enumerate(vetor):
         if valor > 2:
-            if ((i and (datas[i] - datas[i-1]).total_seconds() <= 1 ) or inicio is None):
+            if ((i and (datas[i] - datas[i-1]).total_seconds() <= 1) or inicio is None):
                 if inicio is None:
                     inicio = i  # Marca o início de uma sequência de zeros
             elif inicio is not None:
@@ -183,26 +183,29 @@ def encontrar_intervalos_de_zeros(vetor,datas=[]):
 
     for i, valor in enumerate(vetor):
         if valor <= 2:
-            if ((i and (datas[i] - datas[i-1]).total_seconds() <= 1 ) or inicio is None):
+            if ((i and (datas[i] - datas[i-1]).total_seconds() <= 1) or inicio is None):
                 if inicio is None:
+                    #print(f'\tABRINDO INTERVALO EM {i}')
                     inicio = i  # Marca o início de uma sequência de zeros
             elif inicio is not None:
-                add_time = timedelta(milliseconds=500)
-                intervalos_brutos.append([datas[inicio] -add_time, datas[i - 1] + add_time])  # Fim da sequência de zeros
+                add_time = timedelta(seconds=0.5)
+                intervalos_brutos.append([datas[inicio] - add_time, datas[i - 1] + add_time])  # Fim da sequência de zeros
+                #print(f'\tFECHANDO INTERVALO EM {datas[inicio], datas[i - 1]}')
+                #print(f'\t - ABRINDO INTERVALO EM {i}')
                 inicio = i
-
         else:
             if inicio is not None:
-                add_time = timedelta(milliseconds=500)
-                intervalos_brutos.append([datas[inicio] - add_time, datas[i - 1] + add_time])  # Fim da sequência de zeros
+                add_time = timedelta(seconds=0.5)
+                intervalos_brutos.append([datas[inicio] - add_time, datas[i - 1]+ add_time])  # Fim da sequência de zeros
+                #print(f'\t - FECHANDO INTERVALO EM {[datas[inicio], datas[i - 1] ]}')
                 inicio = None
-
     # Verifica se há uma sequência de zeros no final do vetor
     if inicio is not None:
-        add_time = timedelta(seconds=0)
+        add_time2 = timedelta(seconds=0)
         if datas[inicio] == datas[len(vetor) - 1]:
-            add_time = timedelta(milliseconds=500)
-        intervalos_brutos.append([datas[inicio] - add_time, datas[len(vetor) - 1] + add_time])
+            add_time2 = timedelta(seconds=0.5)
+        add_time = timedelta(seconds=0.5)
+        intervalos_brutos.append([datas[inicio] - add_time, datas[len(vetor) - 1] + add_time2])
 
 
     ################ REMOVER INTERVALOS EM PAUSAS
@@ -226,7 +229,7 @@ def detectar_intervalos_faltante(datas,porcentagem=[]):
     for i in range(1, len(datas)):
         # Calcular a diferença entre a data i e a data anterior (i-1)
         diff = (datas[i] - datas[i-1]).total_seconds()
-        
+
         # Se a diferença for maior que 1 segundo, adicionar ao intervalo
         if diff > 1 and datas[i].day - datas[i-1].day == 0: # or porcentagem[i-1] <= 2 or porcentagem[i] <= 2:
             intervalos_brutos.append((datas[i-1] + timedelta(seconds=0.5), datas[i] - timedelta(seconds=0.5)))
@@ -1170,6 +1173,7 @@ if periodo_inicio:
         SELECT LinhaPinturaUtilizacaoDtHr, LinhaPinturaUtilizacaoPerOcup, LinhaPinturaUtilizacaoParada
         FROM linhapinturautilizacao
         WHERE LinhaPinturaUtilizacaoDtHr BETWEEN '{periodo_inicio}' AND '{periodo_fim}'
+        GROUP BY LinhaPinturaUtilizacaoDtHr
         ORDER BY LinhaPinturaUtilizacaoDtHr;
     """
     last_read = pd.read_sql(query, conn)
