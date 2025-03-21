@@ -134,6 +134,49 @@ def get_pause_intervals(datas):
     return pause_intervals
 
 
+def encontrar_intervalos_ativos(vetor,datas=[]):
+    intervalos_brutos = []
+    inicio = None
+
+    for i, valor in enumerate(vetor):
+        if valor > 2:
+            if ((i and (datas[i] - datas[i-1]).total_seconds() <= 1 ) or inicio is None):
+                if inicio is None:
+                    inicio = i  # Marca o início de uma sequência de zeros
+            elif inicio is not None:
+                add_time = timedelta(milliseconds=500)
+                intervalos_brutos.append([datas[inicio] -add_time, datas[i - 1] + add_time])  # Fim da sequência de zeros
+                inicio = i
+
+        else:
+            if inicio is not None:
+                add_time = timedelta(milliseconds=500)
+                intervalos_brutos.append([datas[inicio] - add_time, datas[i - 1] + add_time])  # Fim da sequência de zeros
+                inicio = None
+
+    # Verifica se há uma sequência de zeros no final do vetor
+    if inicio is not None:
+        add_time = timedelta(seconds=0)
+        if datas[inicio] == datas[len(vetor) - 1]:
+            add_time = timedelta(milliseconds=500)
+        intervalos_brutos.append([datas[inicio] - add_time, datas[len(vetor) - 1] + add_time])
+
+
+    ################ REMOVER INTERVALOS EM PAUSAS
+    # Passo 2:
+    pause_intervals = get_pause_intervals(datas)
+    
+    # Passo 3: Ajustar os intervalos de zeros em relação às pausas
+    intervalos_ajustados = []
+    for intervalo in intervalos_brutos:
+        ajustados = subtract_intervals(intervalo, pause_intervals)
+        intervalos_ajustados.extend(ajustados)
+
+    #intervalos_ajustados = intervalos_brutos
+
+    return intervalos_ajustados
+ 
+
 def encontrar_intervalos_de_zeros(vetor,datas=[]):
     intervalos_brutos = []
     inicio = None
@@ -175,7 +218,7 @@ def encontrar_intervalos_de_zeros(vetor,datas=[]):
     #intervalos_ajustados = intervalos_brutos
 
     return intervalos_ajustados
-
+ 
 def detectar_intervalos_faltante(datas,porcentagem=[]):
     intervalos_brutos = []
     
@@ -325,8 +368,8 @@ def get_intervalos_positivos_saidas(registros):
             new_last_values.append(new_last_value)
 
         #print(f'LAST EMPTY PARA {day}: {last_value} > {fim_turno_dia} ? ->{new_last_value}')
-
     return all_occupied_intervals, all_empty_intervals, new_last_values
+
 ### Para variável last_read['LinhaPinturaUtilizacaoParada'].to_list()
 def encontrar_intervalos_de_uns(vetor):
     intervalos = []
@@ -381,6 +424,8 @@ def create_graph(display_data,show_date_start,show_date_end):
 
     # INTERVALOS DE PERIODOS SEM DADOS (TODOS SÃO 0.5 anterior ao dado do intervalo)
     intervalos_desativado = detectar_intervalos_faltante(display_data['date'])#, display_data['perOcup'])
+
+    intervalos_ativos = encontrar_intervalos_ativos(display_data['perOcup'],display_data['date'])
     #print('INICIANDO OPERACAO {}'.format(len(display_data['date'])))
 
     #####################
@@ -479,20 +524,30 @@ def create_graph(display_data,show_date_start,show_date_end):
 
             inicio_trab_dia, fim_trab_dia, ini_interv_1, fim_interv_1, ini_interv_2, fim_interv_2 = get_dados_turno(data_fim)
 
+            print(f'COMPARAR {data_fim} == {fim_trab_dia} ?')
+            add_time = timedelta(seconds=0.5)
             if data_ini < fim_interv_1 and data_fim > ini_interv_1:
                 if data_fim > fim_interv_1:
-                    new_extra_interval = [fim_interv_1,data_fim]
+                    add_time2 = timedelta(seconds=0.5)
+                    if data_fim == fim_trab_dia:
+                        add_time2 = timedelta(seconds=0)
+                    print(f'\t ADICIONAR {data_fim} == {fim_trab_dia}')
+                    new_extra_interval = [pd.Timestamp(fim_interv_1), data_fim - add_time2]
                     intervalos_desativado.append(new_extra_interval)
+                    add_time = timedelta(seconds=0) # não reduzir tempo final quando estiver cortando por conta do intervalo
                 data_fim = pd.Timestamp(ini_interv_1)
-                
+            print(f'\t ADICIONAR {data_fim} == {fim_trab_dia}')
+            
+            if data_fim == fim_trab_dia:
+                add_time = timedelta(seconds=0)
             # Talvez implementar intervalo 2
             # if data_fim > ini_interv_1 and data_fim < fim_interv_1:
             #     data_fim = pd.Timestamp(ini_interv_1)
 
-            new_interval = [data_ini, data_fim]
-            #print('\t-1>>>{}'.format(new_interval))
+            new_interval = [data_ini, data_fim - add_time]
+            if new_interval not in intervalos_desativado:
+                intervalos_desativado.append(new_interval)
 
-            intervalos_desativado.append(new_interval)
             if not (display_data['date'] == data_fim).any():
                 display_data.loc[len(display_data)] = [data_fim,0]
     
@@ -570,10 +625,13 @@ def create_graph(display_data,show_date_start,show_date_end):
             "y0": -100, "y1": 300,
             "fillcolor": "yellow",
             "opacity": 0.3,
-            "layer": "below",
+            "layer": "between",
+            #"legendgroup":"Leitura < 2%",
+            #"name": f'Leitura < 2% {ind}',
+            #"showlegend": True,#True if ind == 0 else False,
             "line": {"width": 0}
         }
-        for x1, x2 in intervalos_inativo
+        for ind, (x1, x2) in enumerate(intervalos_inativo)
     ]
     
     #Criar retângulos para intervalos desativado
@@ -584,13 +642,13 @@ def create_graph(display_data,show_date_start,show_date_end):
             "y0": -100, "y1": 300,
             "fillcolor": "red",
             "opacity": 0.3,
-            "layer": "below",
+            "layer": "between",
             "line": {"width": 0}
         }
         for x1, x2 in intervalos_desativado
     ]
 
-    # Criar retângulos para intervalos ativados em intervalos
+    # Criar retângulos para intervalos ativados em intervalos pausa
     shapes += [
         {
             "type": "rect",
@@ -598,12 +656,13 @@ def create_graph(display_data,show_date_start,show_date_end):
             "y0": -100, "y1": 300,
             "fillcolor": "mediumpurple",
             "opacity": 0.3,
-            "layer": "below",
+            "layer": "between",
             "line": {"width": 0}
         }
         for x1, x2 in intervalo_ativado_extra
     ]
 
+    # Criar retângulos para intervalos desativados nos intervalos pausa ou fora 
     shapes += [
         {
             "type": "rect",
@@ -611,12 +670,27 @@ def create_graph(display_data,show_date_start,show_date_end):
             "y0": -100, "y1": 300,
             "fillcolor": "lightblue",
             "opacity": 0.3,
-            "layer": "below",
+            "layer": "between",
+            #"showlegend": True,
             "line": {"width": 0}
         }
         for x1, x2 in intervalos_inativo_extra
     ]
-    
+
+    # Criar retângulos para intervalos ativos
+    shapes += [
+        {
+            "type": "rect",
+            "x0": x1, "x1": x2,
+            "y0": -100, "y1": 300,
+            "fillcolor": "green",
+            "opacity": 0.3,
+            "layer": "between",
+            #"showlegend": True,
+            "line": {"width": 0}
+        }
+        for x1, x2 in intervalos_ativos
+    ]
 
     #print(f'TEMPO INICIO GRAFICO 1 {time() - START}')
 
@@ -629,37 +703,47 @@ def create_graph(display_data,show_date_start,show_date_end):
 
     #LEGENDAS Para simular legenda dos shapes
     fig.add_trace(go.Scatter(
-        x=[None],  # Sem dados reais
-        y=[None],
+        x= [None],  # Sem dados reais
+        y= [None],
         mode='markers',
         marker=dict(color='yellow', size=16),
+        # legendgroup = "Leitura < 2%",
         name='Leitura < 2%',  # Nome da legenda
         showlegend=True
     ))
     fig.add_trace(go.Scatter(
-        x=[None],  # Sem dados reais
-        y=[None],
+        x= [None],  # Sem dados reais
+        y= [None],
         mode='markers',
         marker=dict(color='red', size=16),
         name='Desligado',  # Nome da legenda
         showlegend=True
     ))
     fig.add_trace(go.Scatter(
-        x=[None],  # Sem dados reais
-        y=[None],
+        x= [None],  # Sem dados reais
+        y= [None],
         mode='markers',
         marker=dict(color='mediumpurple', size=16),
         name='Ativo Extra',  # Nome da legenda
         showlegend=True
     ))
     fig.add_trace(go.Scatter(
-        x=[None],  # Sem dados reais
-        y=[None],
+        x= [None],  # Sem dados reais
+        y= [None],
         mode='markers',
         marker=dict(color='lightblue', size=16),
         name='Vazio Extra',  # Nome da legenda
         showlegend=True
     ))
+    fig.add_trace(go.Scatter(
+        x= [None],  # Sem dados reais
+        y= [None],
+        mode='markers',
+        marker=dict(color='lightgreen', size=16),
+        name='Ativo',  # Nome da legenda
+        showlegend=True
+    ))
+
 
     # Definir tamanho do y
     fig.update_layout(
