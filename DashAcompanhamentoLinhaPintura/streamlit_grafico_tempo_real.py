@@ -1,23 +1,21 @@
 #import mysql.connector
+import os
+import sys
+import copy
+import math
+import numpy as np
+import pandas as pd
+import streamlit as st
+from queue import Queue
 from urllib.parse import quote
 from sqlalchemy import create_engine
-import math
-import sys
-import streamlit as st
-import pandas as pd
 from time import sleep, time
-import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from streamlit_autorefresh import st_autorefresh
-from datetime import datetime, timedelta
-import pandas as pd
-from datetime import datetime
-from threading import Thread
-from queue import Queue
-import copy
-import os
 from dotenv import load_dotenv,find_dotenv
+from datetime import datetime, timedelta
+from threading import Thread
 
 load_dotenv(find_dotenv())
 
@@ -25,8 +23,6 @@ load_dotenv(find_dotenv())
 st.set_page_config(layout='wide')
 TOLERANCIA_ATIVO = float(os.getenv('TOLERANCIA_ATIVO'))
 #st.markdown(f'TOLERÂNCIA {TOLERANCIA_ATIVO}')
-
-
 
 #placeholder_graph = st.empty() # se for utilizar while invés de st_autorefresh
 
@@ -133,24 +129,27 @@ def encontrar_intervalos_ativos(vetor, datas = []):
 
     for i, valor in enumerate(vetor):
         if valor > TOLERANCIA_ATIVO:
-            # print('1)')
+            # print(f'1) {i}')
+            # print(f'{datas[i]} {datas[i-1]}')
             if ((i and (datas[i] - datas[i-1]).total_seconds() <= 1) or inicio is None):
                 # print('\t>1.1')
                 if inicio is None:
                     # print('\t\t-1.1.1')
                     inicio = i  # Marca o início de uma sequência de zeros
             elif inicio is not None:
-                #print('\t>1.2')
+                # print('\t>1.2')
                 add_time = timedelta(seconds=0.5)
-                intervalos_brutos.append([datas[inicio] - add_time, datas[i - 1] + add_time])  # Fim da sequência de zeros
+                new_intervalo = [datas[inicio] - add_time, datas[i - 1] + add_time]
+                intervalos_brutos.append(new_intervalo)  # Fim da sequência de zeros
                 inicio = i
 
         else:
-            # print('2)')
+            # print(f'2) {i}')
             if inicio is not None:
                 # print('\t>2.1')
                 add_time = timedelta(seconds=0.5)
-                intervalos_brutos.append([datas[inicio] - add_time, datas[i - 1] + add_time])  # Fim da sequência de zeros
+                new_intervalo = [datas[inicio] - add_time, datas[i - 1] + add_time]
+                intervalos_brutos.append(new_intervalo)  # Fim da sequência de zeros
                 inicio = None
 
     # Verifica se há uma sequência de zeros no final do vetor
@@ -209,9 +208,9 @@ def encontrar_intervalos_de_zeros(vetor, datas = []):
                 inicio = None
     # Verifica se há uma sequência de zeros no final do vetor
     if inicio is not None:
-        add_time2 = timedelta(seconds=0)
-        if datas[inicio] == datas[len(vetor) - 1]:
-            add_time2 = timedelta(seconds=0.5)
+        # add_time2 = timedelta(seconds=0)
+        # if datas[inicio] == datas[len(vetor) - 1]: # datas[len(vetor) - 1] == ultimo_dt_turno or 
+        add_time2 = timedelta(seconds=0.5)
         add_time = timedelta(seconds=0.5)
         intervalos_brutos.append([datas[inicio] - add_time, datas[len(vetor) - 1] + add_time2])
 
@@ -400,28 +399,31 @@ def get_intervalos_positivos_saidas(registros):
 
         last_value = ''
         for start, end in intervals_of_interest:
-            # Filtrar dados dentro do intervalo atual
-            mask = (registros['date'] >= start) & (registros['date'] <= end)
-            df_interval = registros[mask]
+            #print(f'COMPARANDO {datetime.now()} >= {end} ({datetime.now() >= end}) and {end > start} ???')
+            if datetime.now() >= end and end > start:
+                
+                # Filtrar dados dentro do intervalo atual
+                mask = (registros['date'] >= start) & (registros['date'] <= end)
+                df_interval = registros[mask]
 
-            # print(f'De {start} até {end}')
-            if not df_interval.empty and get_primeiro_do_dia(day,df_interval) < inicio_turno_dia:
-                #print(f'SALVANDO first: {get_primeiro_do_dia(day,df_interval)}')
-                new_first_values.append(get_primeiro_do_dia(day,df_interval) - timedelta(seconds=0.1))
+                # print(f'De {start} até {end}')
+                if not df_interval.empty and get_primeiro_do_dia(day,df_interval) < inicio_turno_dia:
+                    #print(f'SALVANDO first: {get_primeiro_do_dia(day,df_interval)}')
+                    new_first_values.append(get_primeiro_do_dia(day,df_interval) - timedelta(seconds=0.1))
 
-            ############## CONTINUAR AQUI
-            if len(df_interval) > TOLERANCIA_ATIVO:
-                # print(f'DADOS {len(df_interval)} PARA: {start} - {end}')
-                # Encontrar subintervalos onde perOcup > 2 e perOcup <= 2
-                occupied, empty, last_value = find_intervals_above_threshold(df_interval)
-                all_occupied_intervals.extend(occupied)
-                all_empty_intervals.extend(empty)
-            elif start != inicio_dia and end != fim_dia:
-                # print(f'VAZIO PARA: {start} - {end}')
-                # Se não há dados no intervalo, verificar duração e adicionar como vazio
-                duration = (end - start).total_seconds()
-                if duration > 1:
-                    all_empty_intervals.append((start, end))
+                ############## CONTINUAR AQUI
+                if len(df_interval) > TOLERANCIA_ATIVO:
+                    # print(f'DADOS {len(df_interval)} PARA: {start} - {end}')
+                    # Encontrar subintervalos onde perOcup > 2 e perOcup <= 2
+                    occupied, empty, last_value = find_intervals_above_threshold(df_interval)
+                    all_occupied_intervals.extend(occupied)
+                    all_empty_intervals.extend(empty)
+                elif start != inicio_dia and end != fim_dia:
+                    # print(f'VAZIO PARA: {start} - {end}')
+                    # Se não há dados no intervalo, verificar duração e adicionar como vazio
+                    duration = (end - start).total_seconds()
+                    if duration > 1:
+                        all_empty_intervals.append((start, end))
         
         new_last_value = ''
         if last_value and last_value > fim_turno_dia:
@@ -477,7 +479,7 @@ def calcular_media_porcentagem_por_tempo_trabalhando(display_data):
         if perOcup > TOLERANCIA_ATIVO:
             somatorio += perOcup
             tempo_total += 1
-    return somatorio / (minutos_trabalhados * 60)
+    return somatorio / tempo_total#(minutos_trabalhados * 60)
 
 def adicionar_intervalos(df, intervalos):
     """
@@ -520,9 +522,11 @@ def create_graph(display_data,show_date_start,show_date_end):
     # INTERVALOS DE PERIODOS SEM DADOS (TODOS SÃO 0.5 anterior ao dado do intervalo)
     intervalos_desativado = detectar_intervalos_faltante(display_data['date'])#, display_data['perOcup'])
     print(f'TEMPO INICIO GRAFICO 1 PT - 2 >{time() - START}')
+    #print(f'INTERVALOS DESATIVADOS {intervalos_desativado}')
+
+
     intervalos_ativos = encontrar_intervalos_ativos(display_data['perOcup'],display_data['date'])
     print(f'TEMPO INICIO GRAFICO 1 PT 0 >{time() - START}')
-
     #print('INICIANDO OPERACAO {}'.format(len(display_data['date'])))
 
     #####################
@@ -530,11 +534,12 @@ def create_graph(display_data,show_date_start,show_date_end):
     #   Pegar dias
     dias_periodo = []
 
+    extra_day = 0
     # adicioanr dia atual se não for domingo e for o último para exibição
-    if DIA_SEM_ATUAL != 1 and show_date_end - timedelta(days=1) == datetime.now():
-        dias_periodo.append(show_date_start - timedelta(days=1))
-    else:
-        extra_day = 1
+    # if DIA_SEM_ATUAL != 1 and show_date_end - timedelta(days=1) == datetime.now().date():
+    #     dias_periodo.append(show_date_start - timedelta(days=1))
+    # else:
+    extra_day = 1
 
     dias_atras = ((show_date_end - timedelta(days= 1)) - show_date_start).days + extra_day
     
@@ -609,7 +614,7 @@ def create_graph(display_data,show_date_start,show_date_end):
     display_data = display_data.sort_values(by='date').reset_index(drop=True)
     print(f'TEMPO INICIO GRAFICO 1 PT 0.2 >{time() - START}')
 
-    # print(f'\nINTERVALOS DESATIVADOS 1 >>{intervalos_desativado}')
+    print(f'\nINTERVALOS DESATIVADOS 1 >>{intervalos_desativado}')
     # Adicionar intervalo para primeiros horários do dia
     for dtini in datas_inicio:
        # print(f'<<<{dtini}>>> ((({get_primeiro_do_dia(dtini,display_data)}))) <<<{get_inicio_fim_turno(dtini)}>>>')
@@ -636,12 +641,13 @@ def create_graph(display_data,show_date_start,show_date_end):
                     # add_time2 = timedelta(seconds=0.5)
                     # print(f'COMPARANDO {data_fim} == {fim_trab_dia} ?')
                     
+                    # add_time2 = timedelta(seconds=0.5)
+                    # if data_fim != fim_trab_dia:
                     add_time2 = timedelta(seconds=0)
-                    if data_fim == fim_trab_dia:
-                        add_time2 = timedelta(seconds=0.5)
+                    
                     # print(f'\t ADICIONAR {data_fim} == {fim_trab_dia}')
-                    new_extra_interval = [fim_interv_1, (data_fim + add_time2).to_pydatetime()]
-                    #print(f'\tADICIONANDO INTERVALO 1 {new_extra_interval}')
+                    new_extra_interval = [fim_interv_1, (data_fim - add_time2).to_pydatetime()]
+                    print(f'\tADICIONANDO INTERVALO 1 {new_extra_interval}')
                     intervalos_desativado.append(new_extra_interval)
                     #add_time = timedelta(seconds=0) # não reduzir tempo final quando estiver cortando por conta do intervalo
                 data_fim = pd.Timestamp(ini_interv_1)
@@ -650,7 +656,7 @@ def create_graph(display_data,show_date_start,show_date_end):
 
             new_interval = [data_ini.to_pydatetime(), (data_fim).to_pydatetime()]
             if new_interval not in intervalos_desativado:
-                #print(f'\tADICIONANDO INTERVALO 2 {new_interval}')
+                print(f'\tADICIONANDO INTERVALO 2 {new_interval}')
                 intervalos_desativado.append(new_interval)
 
             if not (display_data['date'] == data_fim).any():
@@ -658,13 +664,14 @@ def create_graph(display_data,show_date_start,show_date_end):
     
     print(f'TEMPO INICIO GRAFICO 1 PT 0.3 >{time() - START}')
     display_data = display_data.sort_values(by='date').reset_index(drop=True)
-    # print(f'INTERVALOS DESATIVADOS 2 >>{intervalos_desativado}')
+    print(f'INTERVALOS DESATIVADOS 2 >>{intervalos_desativado}')
     for dtfim in datas_final:
         # IGNORAR DATA DE HOJE
         if dtfim.date() == datetime.now().date(): continue
         #print(f'COMPARAR DATA FINAL: {dtfim} e {datetime.now().date}')
         indice_fim = display_data.index[display_data['date'] == dtfim]
         inicio_turno_dia, fim_turno_dia = get_inicio_fim_turno(dtfim)
+        inicio_trab_dia, fim_trab_dia, ini_interv_1, fim_interv_1, ini_interv_2, fim_interv_2 = get_dados_turno(dtfim)
 
         if False and retorna_dia_da_semana(dtfim) == 7: fim_turno_dia = dtfim
 
@@ -675,11 +682,13 @@ def create_graph(display_data,show_date_start,show_date_end):
         #print(f'datas finais: {fim_turno_dia} // {get_ultimo_do_dia(dtfim,display_data)}')
         if indice_fim[0] > 0 and get_ultimo_do_dia(dtfim,display_data) <= fim_turno_dia:
             
+            data_inicio = display_data.loc[indice_fim - 1,'date'].iloc[0]
+
             modfy_time = timedelta(seconds=0)
             #print(f'\tULTIMO DO DIA {dtfim} >> {get_ultimo_do_dia(dtfim,display_data)}')
-            if get_ultimo_do_dia(dtfim,display_data) > fim_turno_dia:
+            if data_inicio != inicio_trab_dia and data_inicio != ini_interv_1 and data_inicio != ini_interv_2: #get_ultimo_do_dia(dtfim,display_data) > fim_turno_dia or :
                 modfy_time = timedelta(seconds=0.5)
-            data_inicio = display_data.loc[indice_fim - 1,'date'].iloc[0] + modfy_time
+            data_inicio = data_inicio + modfy_time
             
             inicio_trab_dia, fim_trab_dia, ini_interv_1, fim_interv_1, ini_interv_2, fim_interv_2 = get_dados_turno(data_fim)
 
@@ -695,7 +704,7 @@ def create_graph(display_data,show_date_start,show_date_end):
                 intervalos_desativado.append(new_interval)
                 if not (display_data['date'] == data_inicio).any():# [data_inicio,0] not in display_data:
                     display_data.loc[len(display_data)] = [data_inicio,0]
-    #print(f'INTERVALOS DESATIVADOS 3 >>{intervalos_desativado}')
+    print(f'INTERVALOS DESATIVADOS 3 >>{intervalos_desativado}')
     
     display_data = display_data.sort_values(by='date').reset_index(drop=True)
     #####################
@@ -746,6 +755,7 @@ def create_graph(display_data,show_date_start,show_date_end):
 
 
 
+    # Já sendo calculado em outra parte do código
     percentPerHoraTrab = calcular_media_porcentagem_por_tempo_trabalhando(display_data)
     
     
@@ -917,11 +927,10 @@ def create_graph(display_data,show_date_start,show_date_end):
         legend=dict(
                 font=dict(
                     size=18,  # Tamanho da fonte
-                    family="Arial",  # Família da fonte (opcional)
-                    color="black"  # Cor da fonte (opcional)
+                    family="Arial"#,  # Família da fonte (opcional)
                 )
-            ),
-        overwrite=True
+            )#,
+        #overwrite=True
   # Define o eixo Y de 0 a 50
     )
     return fig, percentPerHoraTrab, display_data
@@ -972,11 +981,15 @@ def create_bar_graph(display_data,show_date_start,show_date_end):
         fim_interv_2 = dados_intervalos[DIA_SEM_ATUAL]['TurnoProdutivoHrEntIntervalo2'].replace(year=horario_atual.year,month=horario_atual.month,day=horario_atual.day)
         fim = dados_intervalos[DIA_SEM_ATUAL]['TurnoProdutivoHrSaida'].replace(year=horario_atual.year,month=horario_atual.month,day=horario_atual.day)
         
-        periodos_trabalho = [(inicio, ini_interv_1)]
+        periodos_trabalho = []
+        if ini_interv_1.hour == 0 and ini_interv_2.hour == 0:
+            periodos_trabalho.append((inicio,fim))
+        if ini_interv_1.hour > 0:
+            periodos_trabalho.append((inicio, ini_interv_1))
         if ini_interv_2.hour > 0 and fim_interv_2.hour > 0:
             periodos_trabalho.append((fim_interv_1, ini_interv_2))# Entre os intervalos
             periodos_trabalho.append((fim_interv_2, fim))          # Após o segundo intervalo
-        elif fim.hour  == 0:
+        elif fim.hour == 0:
             periodos_trabalho.append((fim_interv_1,fim))
         
         #print(f'ANALISANDO O TEMPO PERIODO: {periodos_trabalho}')
@@ -1011,7 +1024,7 @@ def create_bar_graph(display_data,show_date_start,show_date_end):
         #     segundos_atual = (fim - fim_interv_2).total_seconds() + (ini_interv_2 - fim_interv_1).total_seconds() + (ini_interv_1 - inicio).total_seconds()
         min_total += segundos_atual/60
         #print(f'COMPARANDO COM {horario_atual} == {fim}')
-        dias_periodo.append(show_date_start - timedelta(days=1))
+        dias_periodo.append(show_date_start)
     else:
         extra_day = 1
     # print(f'MINUTOS TOTAIS: {min_total} min')
@@ -1025,9 +1038,7 @@ def create_bar_graph(display_data,show_date_start,show_date_end):
             
             if dia_semana != 1 and dia_semana != 7:
                 dias_periodo.append(process_date)
-            
-            
-            if dia_semana != 1 and dia_semana != 7: # ignora domingo
+                #  if dia_semana != 1 and dia_semana != 7: # ignora domingo
                 min_total += minutos_total_dia_semana[dia_semana]
             #min_total += 60 * (18 - 5)
     min_trab = 0
@@ -1046,10 +1057,12 @@ def create_bar_graph(display_data,show_date_start,show_date_end):
     # Número de registros por hora (tempo ativo em segundos)
     result['tempo_ativo_seg'] = grouped.size()
 
+
     # Tempo inativo em segundos (segundos totais - segundos ativos)
     result['tempo_inativo_seg'] = segundos_por_hora - result['tempo_ativo_seg']
     result['percent_tempo_inativo_seg'] = (result['tempo_inativo_seg'] / 36) 
-
+    
+    
     # media porcentagem ativa por hora 
     result['media_perOcup_ativo'] = grouped['perOcup'].apply(lambda x: x[x > TOLERANCIA_ATIVO].mean())
 
@@ -1068,6 +1081,11 @@ def create_bar_graph(display_data,show_date_start,show_date_end):
     #print(f'DIAS EXISTENTES: {dias_periodo}')
 
     #print(result)
+
+    print(f'RESULTADO CALCULO BARRAS {result}')
+    ########## ADICIONAR HORAS FALTANTES DESDE O ÚLTIMO ATÉ O FINAL ?
+
+
     # SISTEMA PARA ADICIONAR HORAS VAZIAS
     for dia_trab_periodo in dias_periodo[::-1]:
         #print(f'\tPROCESSANDO {dia_trab_periodo}')
@@ -1090,7 +1108,13 @@ def create_bar_graph(display_data,show_date_start,show_date_end):
                 #print(f'\t\t{dia_hora_trab} /\n\t\t\t {}')
 
     result = result.sort_index()
-            #result.iloc[dia_trab_periodo.replace]
+            #result.iloc[dia_trab_periodo.replace
+
+    print(f'RESULTADO CALCULO BARRAS {result}')
+        ########## ADICIONAR HORAS FALTANTES DESDE O ÚLTIMO ATÉ O FINAL ?
+
+
+    # média na ocupação ativa
     fig_bar.add_trace(go.Bar(
         x= result.index,
         y= -result['media_perOcup_ativo'],
@@ -1132,6 +1156,7 @@ def create_bar_graph(display_data,show_date_start,show_date_end):
         width=bar_width
     ))#,row=1,col=1)
 
+    # TEMPO ATIVO
     fig_bar.add_trace(go.Bar(
         x=result.index,
         y=result['percent_tempo_ativo_maior_2_seg'],
@@ -1165,7 +1190,6 @@ def create_bar_graph(display_data,show_date_start,show_date_end):
                 font=dict(
                     size=18,  # Tamanho da fonte
                     family="Arial",  # Família da fonte (opcional)
-                    color="black"  # Cor da fonte (opcional)
                 )
             )
         #barmode='stack'  # Para que as posições definidas sejam respeitadas
@@ -1226,7 +1250,6 @@ conn_args = {
 }
 ############
 
-
 print(password)
 engine = create_engine(f"mysql+mysqlconnector://",connect_args=conn_args)#{user}:{password}@{host}/{database}")# # (f"mysql+mysqlconnector://",connect_args=conn_args) 
 
@@ -1247,7 +1270,7 @@ read_datas = st.session_state.get('periodo_tempo',(datetime.today().date(),))
 #     read_datas = (read_datas,)
 
 if len(read_datas) > 1:
-    read_date_ini,read_date_fin = read_datas
+    read_date_ini, read_date_fin = read_datas
 else:
     read_date_ini = read_datas[0]
     read_date_fin = read_datas[0]
@@ -1276,6 +1299,7 @@ if not 'turno_semana_dados' in st.session_state:
     t.TurnoProdutivoQtdeMinutosAlmoco,
     t.TurnoProdutivoDiaSemana
     FROM turnoprodutivo t 
+    WHERE TurnoProdutivoTurno = {2}
     group by t.TurnoProdutivoDiaSemana
     order by t.TurnoProdutivoDiaSemana
     limit 7;'''#
@@ -1289,6 +1313,8 @@ turno_semana_dados = st.session_state.get('turno_semana_dados')
 periodo_inicio = turno_semana_dados[turno_semana_dados['TurnoProdutivoDiaSemana'] == retorna_dia_da_semana(datetime.now())]['HoraMinuto']
 
 #st.markdown(minutos_total_dia_semana)
+
+print(f'periodo_inicio>>>> {periodo_inicio}')
 
 print(f'TEMPO ANTES query 2: {time() - START}')
 
@@ -1350,7 +1376,7 @@ for index, row in turno_semana_dados.iterrows():
 
 def display_no_data():
     st.markdown(f'''
-        ## Sem Dados disponíveis entre {read_date_ini.strftime('%d/%m/%Y')} até {(read_date_fin -  timedelta(days=1)).strftime('%d/%m/%Y')}
+        ## Sem Dados disponíveis entre {periodo_inicio.strftime('%d/%m/%Y')} até {(periodo_fim -  timedelta(days=1)).strftime('%d/%m/%Y')}
     ''')
     st.date_input('Filtro Leitura',key='periodo_tempo')
 
@@ -1358,7 +1384,7 @@ def display_no_data():
 if periodo_inicio:
     print(f'\nTEMPO INICIALIZANDO: {time() - START}')
     #print(periodo_inicio,type(periodo_inicio))
-    periodo_fim = datetime.combine(read_date_ini, datetime.min.time()).replace(hour=23,minute=59,second=59,microsecond=0)
+    #periodo_fim = datetime.combine(read_date_ini, datetime.min.time()).replace(hour=23,minute=59,second=59,microsecond=0)
 
     # Ajustar o período final se for maior que a hora atual
     # agora = datetime.now()
@@ -1370,9 +1396,17 @@ if periodo_inicio:
     periodo_inicio = read_date_ini
     periodo_fim = read_date_fin
 
+    print(F'\nPERIODO FIM INICIAL {periodo_fim}')
+
+    if periodo_inicio > datetime.now().date():
+        periodo_inicio = datetime.now().date()
+    if periodo_fim > datetime.now().date() + timedelta(days=1):
+        periodo_fim = datetime.now().date() + timedelta(days=1)
+
+    print(F'PERIODO FIM APÓS {periodo_fim}\n')
 
     if 'last_read' not in st.session_state or st.session_state.get('last_dates',[]) != [periodo_inicio, periodo_fim]: 
-
+        print('OP Q1')
         query = f"""
             SELECT LinhaPinturaUtilizacaoDtHr, LinhaPinturaUtilizacaoPerOcup, LinhaPinturaUtilizacaoParada
             FROM linhapinturautilizacao
@@ -1391,6 +1425,7 @@ if periodo_inicio:
         else:
             print(f'QUERY RETORNOU VAZIO >> {query}')
     else:
+        print('OP Q2')
         print(f'TEMPO ANTES CARREGAR: {time() - START}')
         last_read = st.session_state.get('last_read')
     
@@ -1402,7 +1437,7 @@ if periodo_inicio:
     last_read["LinhaPinturaUtilizacaoDtHr"] = pd.to_datetime(last_read["LinhaPinturaUtilizacaoDtHr"])
 
     # Criar range completo de minutos
-    todos_minutos = pd.date_range(start=periodo_inicio, end=periodo_fim, freq='min')
+    todos_minutos = pd.date_range(start= periodo_inicio, end= periodo_fim, freq='min')
 
     # Criar DataFrame com todos os minutos
     df_todos = pd.DataFrame({"LinhaPinturaUtilizacaoDtHr": todos_minutos})
@@ -1466,18 +1501,24 @@ if periodo_inicio:
 
     #display_data['date'] = sorted(display_data['date'])
     ####################
+    media_ocupacao = 0
+
     if display_data['date']:
         q_graph = Queue()
         q_bar = Queue()
+
+
+        media_ocupacao = sum([x for x in display_data['perOcup'] if x > TOLERANCIA_ATIVO]) / len([x for x in display_data['perOcup'] if x > TOLERANCIA_ATIVO])
+        #st.markdown(media_ocupacao)
 
         print(f'TEMPO ANTES CÓPIA {time() - START}')
         copia_dp_data = copy.deepcopy(display_data)
         
         print(f'TEMPO ANTES THREAD 1 {time() - START}')
-        thread_bar = Thread(target=create_bar_graph_wrapper, args=(copia_dp_data,read_date_ini,read_date_fin, q_bar))
+        thread_bar = Thread(target=create_bar_graph_wrapper, args=(copia_dp_data,periodo_inicio,periodo_fim, q_bar))
         
         print(f'TEMPO ANTES THREAD 2 {time() - START}')
-        thread_graph = Thread(target=create_graph_wrapper, args=(display_data,read_date_ini,read_date_fin, q_graph))
+        thread_graph = Thread(target=create_graph_wrapper, args=(display_data,periodo_inicio,periodo_fim, q_graph))
         
 
         #st.markdown(f'TEMPO LEVADO ANTES THREAD {time() - START}')
@@ -1526,7 +1567,8 @@ if periodo_inicio:
             #minutos_parados -= minutos_trabalhados
         with st.container(border=True):
             st.markdown('**Ocupação média durante Tempo trabalhando:**')
-            st.markdown(f"<h1 style='text-align: center;'>{percentPerHoraTrab:.2f}%</h1>",unsafe_allow_html=True)
+            # percentPerHoraTrab media_ocupacao 
+            st.markdown(f"<h1 style='text-align: center;'>{media_ocupacao:.2f}%</h1>",unsafe_allow_html=True)
         with st.container(border=True):
             st.markdown('**Tempo Parado:**')
             st.markdown(f"<h1 style='text-align: center;'>{math.floor(minutos_parados / 60)}:{minutos_parados % 60:02}</h1>",unsafe_allow_html=True)
@@ -1537,7 +1579,8 @@ if periodo_inicio:
             st.markdown(f"<h1 style='text-align: center;'>{math.floor(minutos_ligados / 60)}:{minutos_ligados % 60:02}</h1>",unsafe_allow_html=True)
         with st.container(border=True):
             st.markdown('**Tempo Desativado:**') # color: red; background-color:powderblue;
-            st.markdown(f"<h1 style='text-align: center; color: red; background-color:lightgray;'>{math.floor(minutos_desativados / 60)}:{minutos_desativados % 60:02}</h1>",unsafe_allow_html=True)
+            #color: red; background-color:lightgray;
+            st.markdown(f"<h1 style='text-align: center;'>{math.floor(minutos_desativados / 60)}:{minutos_desativados % 60:02}</h1>",unsafe_allow_html=True)
         with st.container(border=True):
             st.markdown('**Tempo Excedente**') # minutos_extras
             st.markdown(f"<h1 style='text-align: center;'>{math.floor(minutos_extras / 60)}:{minutos_extras % 60:02}</h1>",unsafe_allow_html=True)
@@ -1550,14 +1593,14 @@ if periodo_inicio:
             #     <p style="color: white; font-size: 18px;">Mundo</p>
             # </div>''',unsafe_allow_html=True)
     with col2:
-        st.markdown('## Indicativo de uso da linha de pintura da esteira no dia {} até {}'.format(read_date_ini.strftime('%d/%m/%Y'),(read_date_fin-timedelta(days=1)).strftime('%d/%m/%Y')))
+        st.markdown('## Indicativo de uso da linha de pintura da esteira no dia {} até {}'.format(periodo_inicio.strftime('%d/%m/%Y'),(periodo_fim-timedelta(days=1)).strftime('%d/%m/%Y')))
         st.date_input('Filtro de Data de Leitura',key='periodo_tempo')
 
         if fig is None: # MOSTRAR FIGURA VAZIA
             fig = go.Figure()
             fig.add_trace(go.Scatter(
-                x=[0], 
-                y=[datetime.now()], 
+                x=[periodo_inicio, periodo_fim], 
+                y=[0, 0], 
                 mode='markers', #
                 name='Linha principal'))
             fig.update_layout(
@@ -1576,7 +1619,6 @@ if periodo_inicio:
                         font=dict(
                             size=18,  # Tamanho da fonte
                             family="Arial",  # Família da fonte (opcional)
-                            color="black"  # Cor da fonte (opcional)
                         )
                     )
         # Define o eixo Y de 0 a 50
@@ -1590,9 +1632,10 @@ if periodo_inicio:
         #st.markdown(f'Tempo Carregar gráfico 1: {time() - START}')
         if fig_bar is None: # MOSTRAR FIG BARRA VAZIA
             fig_bar = go.Figure()
+            
             fig_bar.add_trace(go.Bar(
-                x= [datetime.today()],
-                y= [0],
+                x= [periodo_inicio, periodo_fim],
+                y= [0, 0],
                 base=0,
                 name='Sem dados',
                 #marker_color='blue',
@@ -1625,7 +1668,6 @@ if periodo_inicio:
                             font=dict(
                                 size=18,  # Tamanho da fonte
                                 family="Arial",  # Família da fonte (opcional)
-                                color="black"  # Cor da fonte (opcional)
                             )
                         )
                     #barmode='stack'  # Para que as posições definidas sejam respeitadas
@@ -1655,7 +1697,6 @@ else:
 
 
 if 'last_read' not in st.session_state or st.session_state.get('last_dates',[]) != [periodo_inicio, periodo_fim]: 
-
         query = f"""
             SELECT LinhaPinturaUtilizacaoDtHr, LinhaPinturaUtilizacaoPerOcup, LinhaPinturaUtilizacaoParada
             FROM linhapinturautilizacao
@@ -1666,11 +1707,12 @@ if 'last_read' not in st.session_state or st.session_state.get('last_dates',[]) 
         #print(f'TEMPO PERIODO INICIAL {periodo_inicio}')
 
         last_read = pd.read_sql(query, engine)
-        st.session_state['last_read'] = last_read
-        print(last_read['LinhaPinturaUtilizacaoDtHr'].iloc[-1])
-        st.session_state['last_dates'] = [periodo_inicio, periodo_fim]
-        st.session_state['last_read_time'] = last_read['LinhaPinturaUtilizacaoDtHr'].iloc[-1]
-else:
+        if not last_read.empty:
+            st.session_state['last_read'] = last_read
+            print(last_read['LinhaPinturaUtilizacaoDtHr'].iloc[-1])
+            st.session_state['last_dates'] = [periodo_inicio, periodo_fim]
+            st.session_state['last_read_time'] = last_read['LinhaPinturaUtilizacaoDtHr'].iloc[-1]
+elif periodo_inicio <= datetime.now().date() <= periodo_fim - timedelta(days=1):
         print(f'TEMPO ANTES CARREGAR: {time() - START}')
         last_read = st.session_state.get('last_read')
         last_read_time = st.session_state.get('last_read_time')
@@ -1692,7 +1734,6 @@ else:
             last_read = pd.concat([last_read, newest_read], ignore_index=True)
 
         st.session_state['last_read'] = last_read
+        st.session_state['last_read_time'] = last_read['LinhaPinturaUtilizacaoDtHr'].iloc[-1]
 
 print('\nCONCLUÍDO\n')
-
-
