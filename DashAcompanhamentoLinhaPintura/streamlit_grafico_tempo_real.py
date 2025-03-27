@@ -16,6 +16,7 @@ from streamlit_autorefresh import st_autorefresh
 from dotenv import load_dotenv,find_dotenv
 from datetime import datetime, timedelta
 from threading import Thread
+import streamlit.components.v1 as components
 
 load_dotenv(find_dotenv())
 
@@ -23,6 +24,15 @@ load_dotenv(find_dotenv())
 st.set_page_config(layout='wide')
 TOLERANCIA_ATIVO = float(os.getenv('TOLERANCIA_ATIVO'))
 #st.markdown(f'TOLERÂNCIA {TOLERANCIA_ATIVO}')
+
+_component_func = components.declare_component(
+    "my_component",
+    url="http://localhost:3001",
+)
+
+def my_component(fig):
+    return _component_func(spec=fig.to_json(), default="",key='Gráfico') # Default para evitar None enquanto carrega
+
 
 #placeholder_graph = st.empty() # se for utilizar while invés de st_autorefresh
 
@@ -513,6 +523,20 @@ def adicionar_intervalos(df, intervalos):
     
     return df_resultado
 
+def calcula_barras_intervalos(intervalos):
+    interval_bars_x = []
+    interval_bars_y = []
+    interval_bars_x2 = []
+    interval_bars_offset = []
+    for i_inax1,i_inax2 in intervalos:
+        interval_bars_x.append(i_inax1)
+        interval_bars_y.append(100)
+        #print(i_inax2,i_inax1,type(i_inax2),type(i_inax1))
+        interval_bars_x2.append((max(i_inax2-i_inax1,timedelta(seconds=0))).total_seconds() * 1000 )
+        interval_bars_offset.append(0)# (i_inax2-i_inax1).total_seconds() * 0 )
+        #interval_bars_y.append(100)
+    return pd.DataFrame({'from':interval_bars_x,'to':interval_bars_x2,'size':interval_bars_y,'offset':interval_bars_offset})
+
 def create_graph(display_data,show_date_start,show_date_end):
     print(f'TEMPO INICIO GRAFICO 1 {time() - START}')
     # INTERVALOS DE ZEROS (UNITÁRIOS são 0.5 maiores)
@@ -782,81 +806,153 @@ def create_graph(display_data,show_date_start,show_date_end):
         mode='lines', # +markers
         name='Linha principal'))
     
-    #Criar retângulos para intervalos inativos
-    shapes = [
-        {
-            "type": "rect",
-            "x0": x1, "x1": x2,
-            "y0": -100, "y1": 300,
-            "fillcolor": "yellow",
-            "opacity": 0.3,
-            "layer": "between",
-            #"legendgroup":"Leitura < 2%",
-            #"name": f'Leitura < 2% {ind}',
-            #"showlegend": True,#True if ind == 0 else False,
-            "line": {"width": 0}
-        }
-        for ind, (x1, x2) in enumerate(intervalos_inativo)
-    ]
+    df_yellow_bar = calcula_barras_intervalos(intervalos_inativo)
+    #print(db_yellow_bar['to']-db_yellow_bar['from'],type(db_yellow_bar['to']-db_yellow_bar['from']))
     
+    fig.add_trace(go.Bar(
+        x=df_yellow_bar['from'],
+        y=df_yellow_bar['size'],
+        width=df_yellow_bar['to'],
+        offset=df_yellow_bar['offset'],#-db_yellow_bar['from']
+        marker_color="yellow",
+        hovertemplate='<extra></extra>',
+        name='Leitura < 2%',
+        opacity=0.3
+    ))
+
+    #shapes = []
+    #Criar retângulos para intervalos inativos
+    # shapes = [
+    #     {
+    #         "type": "rect",
+    #         "x0": x1, "x1": x2,
+    #         "y0": -100, "y1": 300,
+    #         "fillcolor": "yellow",
+    #         "opacity": 0.3,
+    #         "layer": "between",
+    #         #"legendgroup":"Leitura < 2%",
+    #         #"name": f'Leitura < 2% {ind}',
+    #         #"showlegend": True,#True if ind == 0 else False,
+    #         "line": {"width": 0}
+    #     }
+    #     for ind, (x1, x2) in enumerate(intervalos_inativo)
+    # ]
+    
+
+    df_red_bar = calcula_barras_intervalos(intervalos_desativado)
+    #print(db_yellow_bar['to']-db_yellow_bar['from'],type(db_yellow_bar['to']-db_yellow_bar['from']))
+    
+    fig.add_trace(go.Bar(
+        x=df_red_bar['from'],
+        y=df_red_bar['size'],
+        width=df_red_bar['to'],
+        offset=df_red_bar['offset'],#-db_yellow_bar['from']
+        marker_color="red",
+        name='Desligado',
+        hovertemplate='<extra></extra>',
+        opacity=0.3
+    ))
     #Criar retângulos para intervalos desativado
-    shapes += [
-        {
-            "type": "rect",
-            "x0": x1, "x1": x2,
-            "y0": -100, "y1": 300,
-            "fillcolor": "red",
-            "opacity": 0.3,
-            "layer": "between",
-            "line": {"width": 0}
-        }
-        for x1, x2 in intervalos_desativado
-    ]
+    # shapes += [
+    #     {
+    #         "type": "rect",
+    #         "x0": x1, "x1": x2,
+    #         "y0": -100, "y1": 300,
+    #         "fillcolor": "red",
+    #         "opacity": 0.3,
+    #         "layer": "between",
+    #         "line": {"width": 0}
+    #     }
+    #     for x1, x2 in intervalos_desativado
+    # ]
 
-    # Criar retângulos para intervalos ativados em intervalos pausa
-    shapes += [
-        {
-            "type": "rect",
-            "x0": x1, "x1": x2,
-            "y0": -100, "y1": 300,
-            "fillcolor": "mediumpurple",
-            "opacity": 0.3,
-            "layer": "between",
-            "line": {"width": 0}
-        }
-        for x1, x2 in intervalo_ativado_extra
-    ]
 
-    # Criar retângulos para intervalos desativados nos intervalos pausa ou fora 
-    shapes += [
-        {
-            "type": "rect",
-            "x0": x1, "x1": x2,
-            "y0": -100, "y1": 300,
-            "fillcolor": "lightblue",
-            "opacity": 0.3,
-            "layer": "between",
-            #"showlegend": True,
-            "line": {"width": 0}
-        }
-        for x1, x2 in intervalos_inativo_extra
-    ]
+    # # Criar retângulos para intervalos ativados em intervalos pausa
+    df_purple_bar = calcula_barras_intervalos(intervalo_ativado_extra)
+    #print(db_yellow_bar['to']-db_yellow_bar['from'],type(db_yellow_bar['to']-db_yellow_bar['from']))
+    
+    fig.add_trace(go.Bar(
+        x=df_purple_bar['from'],
+        y=df_purple_bar['size'],
+        width=df_purple_bar['to'],
+        offset=df_purple_bar['offset'],
+        marker_color="mediumpurple",
+        name='Ativo Extra',
+        hovertemplate='<extra></extra>',
+        opacity=0.3
+    ))
+    # shapes += [
+    #     {
+    #         "type": "rect",
+    #         "x0": x1, "x1": x2,
+    #         "y0": -100, "y1": 300,
+    #         "fillcolor": "mediumpurple",
+    #         "opacity": 0.3,
+    #         "layer": "between",
+    #         "line": {"width": 0}
+    #     }
+    #     for x1, x2 in intervalo_ativado_extra
+    # ]
 
-    # Criar retângulos para intervalos ativos
-    shapes += [
-        {
-            "type": "rect",
-            "x0": x1, "x1": x2,
-            "y0": -100, "y1": 300,
-            "fillcolor": "green",
-            "opacity": 0.3,
-            "layer": "between",
-            #"showlegend": True,
-            "line": {"width": 0}
-        }
-        for x1, x2 in intervalos_ativos
-    ]
+    # # Criar retângulos para intervalos desativados nos intervalos pausa ou fora 
+    df_lightblue_bar = calcula_barras_intervalos(intervalos_inativo_extra)
+    #print(db_yellow_bar['to']-db_yellow_bar['from'],type(db_yellow_bar['to']-db_yellow_bar['from']))
+    
+    fig.add_trace(go.Bar(
+        x=df_lightblue_bar['from'],
+        y=df_lightblue_bar['size'],
+        width=df_lightblue_bar['to'],
+        offset=df_lightblue_bar['offset'],
+        marker_color="lightblue",
+        name='Vazio Extra',
+        hovertemplate='<extra></extra>',
+        opacity=0.3
+    ))
+    # shapes += [
+    #     {
+    #         "type": "rect",
+    #         "x0": x1, "x1": x2,
+    #         "y0": -100, "y1": 300,
+    #         "fillcolor": "lightblue",
+    #         "opacity": 0.3,
+    #         "layer": "between",
+    #         #"showlegend": True,
+    #         "line": {"width": 0}
+    #     }
+    #     for x1, x2 in intervalos_inativo_extra
+    # ]
 
+    # # Criar retângulos para intervalos ativos
+    df_green_bar = calcula_barras_intervalos(intervalos_ativos)
+    #print(db_yellow_bar['to']-db_yellow_bar['from'],type(db_yellow_bar['to']-db_yellow_bar['from']))
+    
+    fig.add_trace(go.Bar(
+        x=df_green_bar['from'],
+        y=df_green_bar['size'],
+        width=df_green_bar['to'],
+        offset=df_green_bar['offset'],
+        marker_color="green",
+        name='Ativo',
+        hovertemplate='<extra></extra>',
+        opacity=0.3
+    ))
+    # shapes += [
+    #     {
+    #         "type": "rect",
+    #         "x0": x1, "x1": x2,
+    #         "y0": -100, "y1": 300,
+    #         "fillcolor": "green",
+    #         "opacity": 0.3,
+    #         "layer": "between",
+    #         #"showlegend": True,
+    #         "line": {"width": 0}
+    #     }
+    #     for x1, x2 in intervalos_ativos
+    # ]
+
+    fig.update_traces(
+        marker_line_width=0
+    )
 
     fig.update_xaxes(
         tickmode='auto',  # Modo automático para ajustar os ticks
@@ -866,53 +962,56 @@ def create_graph(display_data,show_date_start,show_date_end):
     )
 
     #LEGENDAS Para simular legenda dos shapes
-    fig.add_trace(go.Scatter(
-        x= [None],  # Sem dados reais
-        y= [None],
-        mode='markers',
-        marker=dict(color='yellow', size=16),
-        # legendgroup = "Leitura < 2%",
-        name='Leitura < 2%',  # Nome da legenda
-        showlegend=True
-    ))
-    fig.add_trace(go.Scatter(
-        x= [None],  # Sem dados reais
-        y= [None],
-        mode='markers',
-        marker=dict(color='red', size=16),
-        name='Desligado',  # Nome da legenda
-        showlegend=True
-    ))
-    fig.add_trace(go.Scatter(
-        x= [None],  # Sem dados reais
-        y= [None],
-        mode='markers',
-        marker=dict(color='mediumpurple', size=16),
-        name='Ativo Extra',  # Nome da legenda
-        showlegend=True
-    ))
-    fig.add_trace(go.Scatter(
-        x= [None],  # Sem dados reais
-        y= [None],
-        mode='markers',
-        marker=dict(color='lightblue', size=16),
-        name='Vazio Extra',  # Nome da legenda
-        showlegend=True
-    ))
-    fig.add_trace(go.Scatter(
-        x= [None],  # Sem dados reais
-        y= [None],
-        mode='markers',
-        marker=dict(color='lightgreen', size=16),
-        name='Ativo',  # Nome da legenda
-        showlegend=True
-    ))
+    # fig.add_trace(go.Scatter(
+    #     x= [None],  # Sem dados reais
+    #     y= [None],
+    #     mode='markers',
+    #     marker=dict(color='yellow', size=16),
+    #     # legendgroup = "Leitura < 2%",
+    #     name='Leitura < 2%',  # Nome da legenda
+    #     showlegend=True
+    # ))
+    # fig.add_trace(go.Scatter(
+    #     x= [None],  # Sem dados reais
+    #     y= [None],
+    #     mode='markers',
+    #     marker=dict(color='red', size=16),
+    #     name='Desligado',  # Nome da legenda
+    #     showlegend=True
+    # ))
+    # fig.add_trace(go.Scatter(
+    #     x= [None],  # Sem dados reais
+    #     y= [None],
+    #     mode='markers',
+    #     marker=dict(color='mediumpurple', size=16),
+    #     name='Ativo Extra',  # Nome da legenda
+    #     showlegend=True
+    # ))
+    # fig.add_trace(go.Scatter(
+    #     x= [None],  # Sem dados reais
+    #     y= [None],
+    #     mode='markers',
+    #     marker=dict(color='lightblue', size=16),
+    #     name='Vazio Extra',  # Nome da legenda
+    #     showlegend=True
+    # ))
+    # fig.add_trace(go.Scatter(
+    #     x= [None],  # Sem dados reais
+    #     y= [None],
+    #     mode='markers',
+    #     marker=dict(color='lightgreen', size=16),
+    #     name='Ativo',  # Nome da legenda
+    #     showlegend=True
+    # ))
 
 
+    if 'layout' in st.session_state:
+        fig.layout = st.session_state.get('layout')
     # Definir tamanho do y
     fig.update_layout(
         uirevision= "keep-zoom", # foo
-        shapes= shapes,
+        #shapes= shapes,
+        barmode='overlay',
         showlegend=True,
         yaxis=dict(range=[0, 100]),
         # xaxis=dict(
@@ -1315,7 +1414,6 @@ periodo_inicio = turno_semana_dados[turno_semana_dados['TurnoProdutivoDiaSemana'
 #st.markdown(minutos_total_dia_semana)
 
 print(f'periodo_inicio>>>> {periodo_inicio}')
-
 print(f'TEMPO ANTES query 2: {time() - START}')
 
 ######## CONTINUAR CHECANDO SE TurnoProdutivoQtdeMinutos é atualizado dinâmicamente
@@ -1374,7 +1472,7 @@ for index, row in turno_semana_dados.iterrows():
 
 #print(f'MINUTOS dos Dias da semana: {minutos_total_dia_semana}')
 
-def display_no_data():
+def display_no_data(key='periodo_tempo'):
     st.markdown(f'''
         ## Sem Dados disponíveis entre {periodo_inicio.strftime('%d/%m/%Y')} até {(periodo_fim -  timedelta(days=1)).strftime('%d/%m/%Y')}
     ''')
@@ -1626,9 +1724,31 @@ if periodo_inicio:
         with st.container(border=True):
             #graf_event = plotly_mapbox_events(fig, click_event=True, select_event=True, hover_event=True, relayout_event=True)#, relayout_event=True)
             #st.markdown(f'EVENTO: {graf_event}')
-            st.plotly_chart(fig,key='gráfico')
             
+            v = my_component(fig)
+            if v:
+                new_layout = go.Layout(
+                    # yaxis=dict(
+                    #     range=[0, 100]
+                    # ),
+                    xaxis=dict(
+                        range=[v[0], v[1]]
+                    )
+                )
 
+                if 'layout' not in st.session_state or new_layout != st.session_state.get('layout'):
+                    st.session_state['layout'] = go.Layout(
+                        # yaxis=dict(
+                        #     range=[0, 100]
+                        # ),
+                        xaxis=dict(
+                            range=[v[0], v[1]]
+                        )
+                    )
+                    st.rerun()
+            st.markdown(f'RECEBIDO> {v}')
+
+            st.plotly_chart(fig,key='gráfico')
         #st.markdown(f'Tempo Carregar gráfico 1: {time() - START}')
         if fig_bar is None: # MOSTRAR FIG BARRA VAZIA
             fig_bar = go.Figure()
