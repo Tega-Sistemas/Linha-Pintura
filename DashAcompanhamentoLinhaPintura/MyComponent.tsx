@@ -32,7 +32,7 @@ function Enviarlastx(){
             liberarMouseLIsten();
         }
     }
-}, 500);
+}, 1000);
 }
 
 function handleMouseUp(){
@@ -112,7 +112,7 @@ function MyComponent(props: ComponentProps) {
     }
   };
 
-  console.log('RECEBIDO O LAYOUT',props.args.spec)
+  // console.log('RECEBIDO Dados',props.args.spec)
 
   return (
     <Plot

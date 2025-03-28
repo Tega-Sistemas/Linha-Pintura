@@ -638,7 +638,7 @@ def create_graph(display_data,show_date_start,show_date_end):
     display_data = display_data.sort_values(by='date').reset_index(drop=True)
     print(f'TEMPO INICIO GRAFICO 1 PT 0.2 >{time() - START}')
 
-    print(f'\nINTERVALOS DESATIVADOS 1 >>{intervalos_desativado}')
+    # print(f'\nINTERVALOS DESATIVADOS 1 >>{intervalos_desativado}')
     # Adicionar intervalo para primeiros horários do dia
     for dtini in datas_inicio:
        # print(f'<<<{dtini}>>> ((({get_primeiro_do_dia(dtini,display_data)}))) <<<{get_inicio_fim_turno(dtini)}>>>')
@@ -671,7 +671,7 @@ def create_graph(display_data,show_date_start,show_date_end):
                     
                     # print(f'\t ADICIONAR {data_fim} == {fim_trab_dia}')
                     new_extra_interval = [fim_interv_1, (data_fim - add_time2).to_pydatetime()]
-                    print(f'\tADICIONANDO INTERVALO 1 {new_extra_interval}')
+                    # print(f'\tADICIONANDO INTERVALO 1 {new_extra_interval}')
                     intervalos_desativado.append(new_extra_interval)
                     #add_time = timedelta(seconds=0) # não reduzir tempo final quando estiver cortando por conta do intervalo
                 data_fim = pd.Timestamp(ini_interv_1)
@@ -680,7 +680,7 @@ def create_graph(display_data,show_date_start,show_date_end):
 
             new_interval = [data_ini.to_pydatetime(), (data_fim).to_pydatetime()]
             if new_interval not in intervalos_desativado:
-                print(f'\tADICIONANDO INTERVALO 2 {new_interval}')
+                # print(f'\tADICIONANDO INTERVALO 2 {new_interval}')
                 intervalos_desativado.append(new_interval)
 
             if not (display_data['date'] == data_fim).any():
@@ -688,7 +688,7 @@ def create_graph(display_data,show_date_start,show_date_end):
     
     print(f'TEMPO INICIO GRAFICO 1 PT 0.3 >{time() - START}')
     display_data = display_data.sort_values(by='date').reset_index(drop=True)
-    print(f'INTERVALOS DESATIVADOS 2 >>{intervalos_desativado}')
+    # print(f'INTERVALOS DESATIVADOS 2 >>{intervalos_desativado}')
     for dtfim in datas_final:
         # IGNORAR DATA DE HOJE
         if dtfim.date() == datetime.now().date(): continue
@@ -728,7 +728,7 @@ def create_graph(display_data,show_date_start,show_date_end):
                 intervalos_desativado.append(new_interval)
                 if not (display_data['date'] == data_inicio).any():# [data_inicio,0] not in display_data:
                     display_data.loc[len(display_data)] = [data_inicio,0]
-    print(f'INTERVALOS DESATIVADOS 3 >>{intervalos_desativado}')
+    # print(f'INTERVALOS DESATIVADOS 3 >>{intervalos_desativado}')
     
     display_data = display_data.sort_values(by='date').reset_index(drop=True)
     #####################
@@ -777,17 +777,12 @@ def create_graph(display_data,show_date_start,show_date_end):
     #             # print(f'\t\tInserirF em [{indt}]')
     #             break
 
-
-
     # Já sendo calculado em outra parte do código
     percentPerHoraTrab = calcular_media_porcentagem_por_tempo_trabalhando(display_data)
-    
-    
 
     # MESCLA INTERVALOS
     #intervalos_inativo = merge_intervals(intervalos_inativo)
 
-    # 
     # inicio_trab_dia, fim_trab_dia, ini_interv_1, fim_interv_1, ini_interv_2, fim_interv_2 = get_dados_turno(data_fim)
     # if not (display_data['date'] == ini_interv_1).any():
     #     display_data.loc[len(display_data)] = [ini_interv_1,0]
@@ -815,7 +810,7 @@ def create_graph(display_data,show_date_start,show_date_end):
         width=df_yellow_bar['to'],
         offset=df_yellow_bar['offset'],#-db_yellow_bar['from']
         marker_color="yellow",
-        hovertemplate='<extra></extra>',
+        hoverinfo='skip',#hovertemplate='<extra></extra>',
         name='Leitura < 2%',
         opacity=0.3
     ))
@@ -838,7 +833,6 @@ def create_graph(display_data,show_date_start,show_date_end):
     #     for ind, (x1, x2) in enumerate(intervalos_inativo)
     # ]
     
-
     df_red_bar = calcula_barras_intervalos(intervalos_desativado)
     #print(db_yellow_bar['to']-db_yellow_bar['from'],type(db_yellow_bar['to']-db_yellow_bar['from']))
     
@@ -849,7 +843,7 @@ def create_graph(display_data,show_date_start,show_date_end):
         offset=df_red_bar['offset'],#-db_yellow_bar['from']
         marker_color="red",
         name='Desligado',
-        hovertemplate='<extra></extra>',
+        hoverinfo='skip',#hovertemplate='<extra></extra>',
         opacity=0.3
     ))
     #Criar retângulos para intervalos desativado
@@ -866,7 +860,6 @@ def create_graph(display_data,show_date_start,show_date_end):
     #     for x1, x2 in intervalos_desativado
     # ]
 
-
     # # Criar retângulos para intervalos ativados em intervalos pausa
     df_purple_bar = calcula_barras_intervalos(intervalo_ativado_extra)
     #print(db_yellow_bar['to']-db_yellow_bar['from'],type(db_yellow_bar['to']-db_yellow_bar['from']))
@@ -878,7 +871,7 @@ def create_graph(display_data,show_date_start,show_date_end):
         offset=df_purple_bar['offset'],
         marker_color="mediumpurple",
         name='Ativo Extra',
-        hovertemplate='<extra></extra>',
+        hoverinfo='skip',#hovertemplate='<extra></extra>',
         opacity=0.3
     ))
     # shapes += [
@@ -905,7 +898,7 @@ def create_graph(display_data,show_date_start,show_date_end):
         offset=df_lightblue_bar['offset'],
         marker_color="lightblue",
         name='Vazio Extra',
-        hovertemplate='<extra></extra>',
+        hoverinfo='skip',#hovertemplate='<extra></extra>',
         opacity=0.3
     ))
     # shapes += [
@@ -933,7 +926,7 @@ def create_graph(display_data,show_date_start,show_date_end):
         offset=df_green_bar['offset'],
         marker_color="green",
         name='Ativo',
-        hovertemplate='<extra></extra>',
+        hoverinfo='skip',#hovertemplate='<extra></extra>',
         opacity=0.3
     ))
     # shapes += [
@@ -949,17 +942,6 @@ def create_graph(display_data,show_date_start,show_date_end):
     #     }
     #     for x1, x2 in intervalos_ativos
     # ]
-
-    fig.update_traces(
-        marker_line_width=0
-    )
-
-    fig.update_xaxes(
-        tickmode='auto',  # Modo automático para ajustar os ticks
-        dtick=3600000,   # Intervalo de 1 hora (em milissegundos)
-        #tickformat='%H:%M',  # Formato de exibição das horas
-        rangeslider_visible=True  # Adiciona um rangeslider para facilitar o zoom
-    )
 
     #LEGENDAS Para simular legenda dos shapes
     # fig.add_trace(go.Scatter(
@@ -1004,10 +986,16 @@ def create_graph(display_data,show_date_start,show_date_end):
     #     showlegend=True
     # ))
 
-
-    if 'layout' in st.session_state:
-        fig.layout = st.session_state.get('layout')
     # Definir tamanho do y
+    fig.update_traces(
+        marker_line_width=0
+    )
+    fig.update_xaxes(
+        tickmode='auto',  # Modo automático para ajustar os ticks
+        dtick=3600000,   # Intervalo de 1 hora (em milissegundos)
+        #tickformat='%H:%M',  # Formato de exibição das horas
+        rangeslider_visible=True  # Adiciona um rangeslider para facilitar o zoom
+    )
     fig.update_layout(
         uirevision= "keep-zoom", # foo
         #shapes= shapes,
@@ -1156,11 +1144,9 @@ def create_bar_graph(display_data,show_date_start,show_date_end):
     # Número de registros por hora (tempo ativo em segundos)
     result['tempo_ativo_seg'] = grouped.size()
 
-
     # Tempo inativo em segundos (segundos totais - segundos ativos)
     result['tempo_inativo_seg'] = segundos_por_hora - result['tempo_ativo_seg']
     result['percent_tempo_inativo_seg'] = (result['tempo_inativo_seg'] / 36) 
-    
     
     # media porcentagem ativa por hora 
     result['media_perOcup_ativo'] = grouped['perOcup'].apply(lambda x: x[x > TOLERANCIA_ATIVO].mean())
@@ -1181,9 +1167,8 @@ def create_bar_graph(display_data,show_date_start,show_date_end):
 
     #print(result)
 
-    print(f'RESULTADO CALCULO BARRAS {result}')
+    #print(f'RESULTADO CALCULO BARRAS {result}')
     ########## ADICIONAR HORAS FALTANTES DESDE O ÚLTIMO ATÉ O FINAL ?
-
 
     # SISTEMA PARA ADICIONAR HORAS VAZIAS
     for dia_trab_periodo in dias_periodo[::-1]:
@@ -1209,9 +1194,8 @@ def create_bar_graph(display_data,show_date_start,show_date_end):
     result = result.sort_index()
             #result.iloc[dia_trab_periodo.replace
 
-    print(f'RESULTADO CALCULO BARRAS {result}')
+    #print(f'RESULTADO CALCULO BARRAS {result}')
         ########## ADICIONAR HORAS FALTANTES DESDE O ÚLTIMO ATÉ O FINAL ?
-
 
     # média na ocupação ativa
     fig_bar.add_trace(go.Bar(
@@ -1225,7 +1209,6 @@ def create_bar_graph(display_data,show_date_start,show_date_end):
         customdata=[abs(y) for y in -result['media_perOcup_ativo']],
         hovertemplate='%{customdata:.0f} % (%{x})   <extra></extra>',  # Exibe o valor sem o sinal negativo
         opacity=0.3#,
-        
     ))#,row=2,col=1)
 
     #offset_inativo = [ if val != 100 else -1000000 for val in result['percent_tempo_inativo_seg']]
@@ -1605,7 +1588,6 @@ if periodo_inicio:
         q_graph = Queue()
         q_bar = Queue()
 
-
         media_ocupacao = sum([x for x in display_data['perOcup'] if x > TOLERANCIA_ATIVO]) / len([x for x in display_data['perOcup'] if x > TOLERANCIA_ATIVO])
         #st.markdown(media_ocupacao)
 
@@ -1617,23 +1599,47 @@ if periodo_inicio:
         
         print(f'TEMPO ANTES THREAD 2 {time() - START}')
         thread_graph = Thread(target=create_graph_wrapper, args=(display_data,periodo_inicio,periodo_fim, q_graph))
-        
 
+        same_data = st.session_state.get('last_process',[]) == display_data
+        st.session_state['last_process'] = display_data
         #st.markdown(f'TEMPO LEVADO ANTES THREAD {time() - START}')
         #st.markdown(f'TEMPO LEVADO ANTES THREAD {time() - START}')
         # Iniciar as threads
-        thread_graph.start()
-        thread_bar.start()
+        if not same_data or 'fig1' not in st.session_state or 'figbar' not in st.session_state:
+            thread_graph.start()
+            thread_bar.start()
 
-        # Esperar que ambas terminem
-        thread_graph.join()
-        thread_bar.join()
-        # st.markdown(f'TEMPO LEVADO THREADS {time() - START}')
-        print((f'TEMPO LEVADO THREADS {time() - START}'))
+            # Esperar que ambas terminem
+            thread_graph.join()
+            thread_bar.join()
+            # st.markdown(f'TEMPO LEVADO THREADS {time() - START}')
+            print((f'TEMPO LEVADO THREADS {time() - START}'))
 
+            fig, percentPerHoraTrab, display_data = q_graph.get()
+            fig_bar, min_total, min_trab, percent_trab_geral, min_parado, minutos_ligados, minutos_extras = q_bar.get()
 
-        fig, percentPerHoraTrab, display_data = q_graph.get()
-        fig_bar, min_total, min_trab, percent_trab_geral, min_parado, minutos_ligados, minutos_extras = q_bar.get()
+            st.session_state['fig1'] = (fig, percentPerHoraTrab, display_data)
+            st.session_state['figbar'] = (fig_bar, min_total, min_trab, percent_trab_geral, min_parado, minutos_ligados, minutos_extras)
+        else:
+            fig, percentPerHoraTrab, display_data = st.session_state.get('fig1')
+            fig_bar, min_total, min_trab, percent_trab_geral, min_parado, minutos_ligados, minutos_extras = st.session_state.get('figbar')
+        last_layout = st.session_state.get('layout',[])
+        print(f'LAYOUT ?? {last_layout}')
+        if last_layout: # not same_data and 
+            last_value_y = display_data['date'].iloc[-1]
+            print(f'xaxis: {last_layout.xaxis.range} <{last_layout.xaxis.range[1]} > {last_value_y}> ({type(last_layout.xaxis.range[1])} > {type(last_value_y)})')
+            if pd.Timestamp(last_layout.xaxis.range[1]) > last_value_y:
+                # ativar de novo automaticamente atualizar
+                #st.session_state['show_last'] = True
+                last_layout.xaxis.range = (last_layout.xaxis.range[0], last_value_y)
+            else:
+                #st.session_state['show_last'] = False
+                pass
+            fig.update_layout(
+                xaxis=dict(range=last_layout.xaxis.range),
+            )
+        else:
+            print('Sem Layout')
 
         # st.markdown(f'TEMPO LEVADO DEPOIS THREAD {time() - START}')
         #st.markdown(f'Tempo Processamento: {time() - START}')
@@ -1721,12 +1727,15 @@ if periodo_inicio:
                     )
         # Define o eixo Y de 0 a 50
             )
+        
         with st.container(border=True):
             #graf_event = plotly_mapbox_events(fig, click_event=True, select_event=True, hover_event=True, relayout_event=True)#, relayout_event=True)
             #st.markdown(f'EVENTO: {graf_event}')
-            
+            st.markdown(f'Tempo ANTES gráfico 1: {time() - START}')
+
             v = my_component(fig)
-            if v:
+            st.markdown(f'RECEBIDO> {v}')
+            if v and v != 'reset':
                 new_layout = go.Layout(
                     # yaxis=dict(
                     #     range=[0, 100]
@@ -1737,16 +1746,17 @@ if periodo_inicio:
                 )
 
                 if 'layout' not in st.session_state or new_layout != st.session_state.get('layout'):
-                    st.session_state['layout'] = go.Layout(
-                        # yaxis=dict(
-                        #     range=[0, 100]
-                        # ),
-                        xaxis=dict(
-                            range=[v[0], v[1]]
-                        )
-                    )
+                    print(f'LAYOUT SALVAR {new_layout}')
+                    st.session_state['layout'] = new_layout
                     st.rerun()
-            st.markdown(f'RECEBIDO> {v}')
+                else:
+                    print('Não salvar layout {} or {}'.format('layout' not in st.session_state, new_layout != st.session_state.get('layout')))
+                    print(st.session_state.get('layout'))
+            else:
+                if 'layout' in st.session_state:
+                    del st.session_state['layout']
+                    st.rerun()
+            st.markdown(f'RECEBIDO1 > {v}')
 
             st.plotly_chart(fig,key='gráfico')
         #st.markdown(f'Tempo Carregar gráfico 1: {time() - START}')
