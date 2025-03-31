@@ -30,9 +30,9 @@ _component_func = components.declare_component(
     url="http://localhost:3001",
 )
 
-def my_component(fig):
-    return _component_func(spec=fig.to_json(), default="",key='Gráfico') # Default para evitar None enquanto carrega
-
+def my_component(fig,change_flag):
+    print(f'ENVIANDO FLAG MUDANÇA {change_flag}')
+    return _component_func(spec=fig.to_json(),change_flag=change_flag, default="",key='Gráfico') # Default para evitar None enquanto carrega
 
 #placeholder_graph = st.empty() # se for utilizar while invés de st_autorefresh
 
@@ -990,14 +990,10 @@ def create_graph(display_data,show_date_start,show_date_end):
     fig.update_traces(
         marker_line_width=0
     )
-    fig.update_xaxes(
-        tickmode='auto',  # Modo automático para ajustar os ticks
-        dtick=3600000,   # Intervalo de 1 hora (em milissegundos)
-        #tickformat='%H:%M',  # Formato de exibição das horas
-        rangeslider_visible=True  # Adiciona um rangeslider para facilitar o zoom
-    )
+    
     fig.update_layout(
-        uirevision= "keep-zoom", # foo
+        #uirevision= "keep-zoom", # foo
+        # datarevision=0,
         #shapes= shapes,
         barmode='overlay',
         showlegend=True,
@@ -1019,6 +1015,13 @@ def create_graph(display_data,show_date_start,show_date_end):
             )#,
         #overwrite=True
   # Define o eixo Y de 0 a 50
+    )
+
+    fig.update_xaxes(
+        tickmode='auto',  # Modo automático para ajustar os ticks
+        dtick=3600000,   # Intervalo de 1 hora (em milissegundos)
+        #tickformat='%H:%M',  # Formato de exibição das horas
+        rangeslider={"visible":True}  # Adiciona um rangeslider para facilitar o zoom
     )
     return fig, percentPerHoraTrab, display_data
 
@@ -1635,8 +1638,12 @@ if periodo_inicio:
             else:
                 #st.session_state['show_last'] = False
                 pass
-            fig.update_layout(
-                xaxis=dict(range=last_layout.xaxis.range),
+            fig.update_xaxes(
+                tickmode='auto',  # Modo automático para ajustar os ticks
+                dtick=3600000,   # Intervalo de 1 hora (em milissegundos)
+                range=last_layout.xaxis.range,
+                #tickformat='%H:%M',  # Formato de exibição das horas
+                rangeslider={"visible":True}  # Adiciona um rangeslider para facilitar o zoom
             )
         else:
             print('Sem Layout')
@@ -1733,7 +1740,7 @@ if periodo_inicio:
             #st.markdown(f'EVENTO: {graf_event}')
             st.markdown(f'Tempo ANTES gráfico 1: {time() - START}')
 
-            v = my_component(fig)
+            v = my_component(fig,change_flag={'dates': [periodo_inicio.isoformat(), (periodo_fim-timedelta(days=1)).isoformat()]})
             st.markdown(f'RECEBIDO> {v}')
             if v and v != 'reset':
                 new_layout = go.Layout(
