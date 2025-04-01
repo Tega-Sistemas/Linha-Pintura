@@ -3,6 +3,7 @@ import os
 import sys
 import copy
 import math
+import random
 import numpy as np
 import pandas as pd
 import streamlit as st
@@ -43,9 +44,7 @@ option_theme = st.get_option("theme.base")
 #     text_color = 'black'
 
 def retorna_dia_da_semana(data): # começando no domingo
-    """
-    Retorna o dia da semana começando no domingo (domingo = 1, segunda = 2, ..., sábado = 7).
-    """
+    """Retorna o dia da semana começando no domingo (domingo = 1, segunda = 2, ..., sábado = 7)."""
     dia_iso = data.isoweekday()  # Segunda = 1 -> Domingo = 7
     return (dia_iso % 7) + 1
 
@@ -133,7 +132,7 @@ def get_pause_intervals(datas):
 
     return pause_intervals
 
-def encontrar_intervalos_ativos(vetor, datas = []):
+def encontrar_intervalos_ativos(vetor, datas = [], new_data = False):
     intervalos_brutos = []
     inicio = None
 
@@ -165,11 +164,11 @@ def encontrar_intervalos_ativos(vetor, datas = []):
     # Verifica se há uma sequência de zeros no final do vetor
     if inicio is not None:
         add_time = timedelta(seconds=0.5)
-        if datas[inicio] == datas[0]:
+        if datas[inicio] == datas[0] and not new_data:
              add_time = timedelta(milliseconds=0)
         
         add_time2 = timedelta(seconds=0.5)
-        if datas[inicio] == datas[len(vetor) - 1]:
+        if datas[inicio] == datas[len(vetor) - 1] and not new_data:
             add_time2 = timedelta(seconds=0)
 
         intervalos_brutos.append([datas[inicio] - add_time, datas[len(vetor) - 1] + add_time2])
@@ -489,7 +488,8 @@ def calcular_media_porcentagem_por_tempo_trabalhando(display_data):
         if perOcup > TOLERANCIA_ATIVO:
             somatorio += perOcup
             tempo_total += 1
-    return somatorio / tempo_total#(minutos_trabalhados * 60)
+    
+    return somatorio / tempo_total if tempo_total else 0#(minutos_trabalhados * 60)
 
 def adicionar_intervalos(df, intervalos):
     """
@@ -523,19 +523,198 @@ def adicionar_intervalos(df, intervalos):
     
     return df_resultado
 
-def calcula_barras_intervalos(intervalos):
+def calcula_barras_intervalos(intervalos, new = False):
+    extra = 0
+    if new:
+        extra = 500
     interval_bars_x = []
     interval_bars_y = []
     interval_bars_x2 = []
     interval_bars_offset = []
     for i_inax1,i_inax2 in intervalos:
+        print(f'\t>>PROCESSANDO INTERVALO: {i_inax1}, {i_inax2}')
         interval_bars_x.append(i_inax1)
         interval_bars_y.append(100)
         #print(i_inax2,i_inax1,type(i_inax2),type(i_inax1))
-        interval_bars_x2.append((max(i_inax2-i_inax1,timedelta(seconds=0))).total_seconds() * 1000 )
+        interval_bars_x2.append((max(i_inax2-i_inax1,timedelta(seconds=0))).total_seconds() * 1000)
         interval_bars_offset.append(0)# (i_inax2-i_inax1).total_seconds() * 0 )
         #interval_bars_y.append(100)
     return pd.DataFrame({'from':interval_bars_x,'to':interval_bars_x2,'size':interval_bars_y,'offset':interval_bars_offset})
+
+def process_part(display_data, show_date_start, show_date_end, last_data_old, last_data_new):
+    last_data_old = pd.Timestamp(last_data_old).to_pydatetime() + timedelta(seconds=0.5)
+
+    # display_data[0].insert(0,last_data_old)
+    # display_data[1].insert(0,0)
+    intervalos_inativo = encontrar_intervalos_de_zeros(display_data[1], display_data[0])
+    intervalos_desativado = detectar_intervalos_faltante(display_data[0])
+    intervalos_ativos = encontrar_intervalos_ativos(display_data[1], display_data[0],True)
+    
+    # print(f'LAST {last_data_old} {type(last_data_old)}')
+    # if (display_data[0][0] - last_data_old + timedelta(seconds=0.5)).total_seconds() > 0.5:
+    #     intervalos_desativado.append([last_data_old + timedelta(seconds=0.5),display_data[0][0]])
+
+    print(f'intervalos_desativado>>> {intervalos_desativado}')
+
+    ###### Fors para desativados
+    display_data = pd.DataFrame({'date':display_data[0],'perOcup':display_data[1]})
+    print(f'CRIADO NOVO DISPLAY DATA {display_data}')
+
+    datas_inicio = []
+    datas_final = []
+    dia_trab_periodo = datetime.today()
+    # print(f'\tPROCESSANDO {dia_trab_periodo}')
+    # result['percent_tempo_inativo_seg'] [hora_falta] = 100
+
+    dia_semana_process = retorna_dia_da_semana(dia_trab_periodo)
+    
+    inicio_trab_dia = last_data_old #dados_intervalos[dia_semana_process]['TurnoProdutivoHrEntrada']
+    fim_trab_dia = last_data_new #dados_intervalos[dia_semana_process]['TurnoProdutivoHrSaida']
+
+    #ADICIONARIA A DATA ATUAL ao gráfico
+    # if dia_semana_process == 7: print(f'>> SABADO: {fim_trab_dia}')
+    # if fim_trab_dia.hour == 0 and fim_trab_dia.minute == 0:
+    #     fim_trab_dia = dados_intervalos[dia_semana_process]['TurnoProdutivoHrEntIntervalo2']
+    #     # if dia_semana_process == 7: print(f'\t{fim_trab_dia}')
+    #     if fim_trab_dia.hour == 0 and fim_trab_dia.minute == 0:
+    #         fim_trab_dia = dados_intervalos[dia_semana_process]['TurnoProdutivoHrEntIntervalo1']
+
+    data_inicial = inicio_trab_dia #datetime(year=dia_trab_periodo.year,month=dia_trab_periodo.month,day=dia_trab_periodo.day).replace(hour=inicio_trab_dia.hour,minute=inicio_trab_dia.minute,second=inicio_trab_dia.second,microsecond=inicio_trab_dia.microsecond)
+    
+    if data_inicial not in display_data['date'].values and display_data.loc[0, 'date'] - data_inicial >= timedelta(seconds=1):# and data_inicial != inicio_trab_dia:
+        print(f'\tADICIONANDO INI {data_inicial}')
+        display_data.loc[len(display_data)] = [data_inicial,0]
+        datas_inicio.append(data_inicial)
+    
+
+    print(f'MODIFICADO? {display_data}')
+
+    # Não era pra ser data inicial ?
+    # data_final = last_data_new#datetime(year=dia_trab_periodo.year,month=dia_trab_periodo.month,day=dia_trab_periodo.day).replace(hour=fim_trab_dia.hour,minute=fim_trab_dia.minute)
+    # if data_final not in display_data['date'].values:# and data_final.date() != datetime.now().date():
+    #     print(f'\tADICIONANDO FIM {data_final}')
+    #     display_data.loc[len(display_data)] = [data_final,0]
+    #     datas_final.append(data_final)
+
+    display_data = display_data.sort_values(by='date').reset_index(drop=True)
+    print(f'TEMPO INICIO GRAFICO 1 PT 0.2 >{time() - START}')
+
+    print(f'\nINTERVALOS DESATIVADOS 1 >>{intervalos_desativado}')
+    print(f'DATAS INICIO: {datas_inicio}')
+    # Adicionar intervalo para primeiros horários do dia
+    
+    ###################### ANTIGO FOR 1
+    if datas_inicio:
+        dtini = datas_inicio[0]
+        print(dtini,type(dtini))
+        if dtini >= get_primeiro_do_dia(dtini, display_data): # retorna_dia_da_semana(dtini) != 7 and 
+            indice_ini = display_data.index[display_data['date'] == dtini]
+            data_ini = pd.Timestamp(dtini)
+            print(display_data)
+
+            data_fim = display_data.loc[indice_ini + 1,'date'].iloc[0] if indice_ini + 1 < len(display_data) else dtini + timedelta(seconds=0.5)
+
+            inicio_trab_dia, fim_trab_dia, ini_interv_1, fim_interv_1, ini_interv_2, fim_interv_2 = get_dados_turno(data_fim)
+
+            inicio_trab_dia = last_data_old
+            fim_trab_dia = last_data_new
+
+            modfy_time = timedelta(seconds=0.5)
+            if data_fim == ini_interv_1 or data_fim == ini_interv_2 or data_fim == fim_trab_dia:#inicio_turno_dia > get_primeiro_do_dia(dtini,display_data):
+                modfy_time = timedelta(seconds=0)
+            data_fim = data_fim - modfy_time
+            
+            if data_ini < fim_interv_1 and data_fim > ini_interv_1:
+                if data_fim > fim_interv_1:
+                    add_time2 = timedelta(seconds=0)
+                    new_extra_interval = [fim_interv_1, (data_fim - add_time2).to_pydatetime()]
+                    intervalos_desativado.append(new_extra_interval)
+                data_fim = pd.Timestamp(ini_interv_1)
+
+            #Talvez implementar intervalo 2
+
+            new_interval = [data_ini.to_pydatetime(), (data_fim).to_pydatetime()]
+            if new_interval not in intervalos_desativado and new_interval[1] - new_interval[0] >= timedelta(seconds=1):
+                # print(f'\tADICIONANDO INTERVALO 2 {new_interval}')
+                intervalos_desativado.append(new_interval)
+
+                if not (display_data['date'] == data_fim).any():
+                    print(f'ADICIONANDO DATA FINAL: {data_fim}')
+                    display_data.loc[len(display_data)] = [data_fim,0]
+        
+
+    print(f'TEMPO INICIO GRAFICO 1 PT 0.3 >{time() - START}')
+    display_data = display_data.sort_values(by='date').reset_index(drop=True)
+    
+    ###################### ANTIGO FOR 2 (Por agora não é usado)
+    print(f'INTERVALOS DESATIVADOS 2 >>{intervalos_desativado}')
+    for dtfim in datas_final:
+        # IGNORAR DATA DE HOJE #if dtfim.date() == datetime.now().date(): continue
+        
+        indice_fim = display_data.index[display_data['date'] == dtfim]
+        inicio_turno_dia, fim_turno_dia = get_inicio_fim_turno(dtfim)
+        inicio_trab_dia, fim_trab_dia, ini_interv_1, fim_interv_1, ini_interv_2, fim_interv_2 = get_dados_turno(dtfim)
+
+        inicio_trab_dia = last_data_old
+        fim_trab_dia = last_data_new
+
+        #if False and retorna_dia_da_semana(dtfim) == 7: fim_turno_dia = dtfim
+
+        data_fim = pd.Timestamp(dtfim)
+
+        if indice_fim[0] > 0 and get_ultimo_do_dia(dtfim,display_data) <= fim_turno_dia:
+            
+            data_inicio = display_data.loc[indice_fim - 1,'date'].iloc[0]
+            modfy_time = timedelta(seconds=0)
+            #print(f'\tULTIMO DO DIA {dtfim} >> {get_ultimo_do_dia(dtfim,display_data)}')
+            if data_inicio != inicio_trab_dia and data_inicio != ini_interv_1 and data_inicio != ini_interv_2: #get_ultimo_do_dia(dtfim,display_data) > fim_turno_dia or :
+                modfy_time = timedelta(seconds=0.5)
+            data_inicio = data_inicio + modfy_time
+            
+            inicio_trab_dia, fim_trab_dia, ini_interv_1, fim_interv_1, ini_interv_2, fim_interv_2 = get_dados_turno(data_fim)
+
+            if data_inicio >= ini_interv_1 and data_inicio < fim_interv_1: # TALVEZ TRATAR CASO DE data_fim menor que fim do intervalo 1
+                data_inicio = pd.Timestamp(fim_interv_1)
+                # POSSÍVEL ERRO: INICIO ANTES E FIM DEPOIS ? Ou já tratado no for anterior ?
+            # Talvez implementar intervalo 2
+
+            new_interval = [data_inicio.to_pydatetime(), data_fim.to_pydatetime()]
+
+            if new_interval not in intervalos_desativado:
+                #print(f'\tADICIONANDO INTERVALO 3 {new_interval}')
+                intervalos_desativado.append(new_interval)
+                if not (display_data['date'] == data_inicio).any():# [data_inicio,0] not in display_data:
+                    display_data.loc[len(display_data)] = [data_inicio,0]
+                    print(f'ADICIONANDO dt inicio {data_inicio}')
+    print(f'INTERVALOS DESATIVADOS 3 >>{intervalos_desativado}')
+    ############## Fora de horário
+
+    display_data = display_data.sort_values(by='date').reset_index(drop=True)
+    intervalo_ativado_extra, intervalos_inativo_extra, new_last_values, new_first_values = get_intervalos_positivos_saidas(display_data)
+    if new_last_values:
+            for new_last_value in new_last_values:
+                print(f'Inserir last {new_last_value}')
+                display_data.loc[len(display_data)] = [new_last_value,0]
+    display_data = display_data.sort_values(by='date').reset_index(drop=True)
+
+    if new_first_values:
+        for new_first_value in new_first_values:
+            print(f'Inserir first {new_first_value}')
+            display_data.loc[len(display_data)] = [new_first_value,0]
+    display_data = display_data.sort_values(by='date').reset_index(drop=True)
+    print(f'ANTES DE INATIVOS EXTRA {display_data}')
+    display_data = adicionar_intervalos(display_data,intervalos_inativo_extra)
+    print(f'ADICIONADOS INTERVALOS INATIVOS EXTRA {display_data}')
+    display_data = adicionar_intervalos(display_data,intervalos_desativado)
+    print(f'ADICIONADOS INTERVALOS DESATIVADOS {display_data}')
+
+    df_yellow_bar = calcula_barras_intervalos(intervalos_inativo,True)
+    df_red_bar = calcula_barras_intervalos(intervalos_desativado,True)
+    df_purple_bar = calcula_barras_intervalos(intervalo_ativado_extra,True)
+    df_lightblue_bar = calcula_barras_intervalos(intervalos_inativo_extra,True)
+    df_green_bar = calcula_barras_intervalos(intervalos_ativos,True)
+
+    return display_data, intervalos_inativo,intervalos_desativado,intervalos_ativos, intervalo_ativado_extra, intervalos_inativo_extra, df_yellow_bar, df_red_bar, df_purple_bar, df_lightblue_bar, df_green_bar
 
 def create_graph(display_data,show_date_start,show_date_end):
     print(f'TEMPO INICIO GRAFICO 1 {time() - START}')
@@ -547,7 +726,6 @@ def create_graph(display_data,show_date_start,show_date_end):
     intervalos_desativado = detectar_intervalos_faltante(display_data['date'])#, display_data['perOcup'])
     print(f'TEMPO INICIO GRAFICO 1 PT - 2 >{time() - START}')
     #print(f'INTERVALOS DESATIVADOS {intervalos_desativado}')
-
 
     intervalos_ativos = encontrar_intervalos_ativos(display_data['perOcup'],display_data['date'])
     print(f'TEMPO INICIO GRAFICO 1 PT 0 >{time() - START}')
@@ -575,13 +753,10 @@ def create_graph(display_data,show_date_start,show_date_end):
                 dias_periodo.append(process_date)
     #####################
 
-
     #print('OPERACAO CONCLUIDA {}'.format(len(display_data['date'])))
     # Converte dados em dataframe
 
     display_data = pd.DataFrame(display_data)
-
-    
 
     # print(f'INDEX : {display_data.index}')
 
@@ -799,7 +974,7 @@ def create_graph(display_data,show_date_start,show_date_end):
         x=display_data['date'], 
         y=display_data['perOcup'], 
         mode='lines', # +markers
-        name='Linha principal'))
+        name='Leitura Sensores'))
     
     df_yellow_bar = calcula_barras_intervalos(intervalos_inativo)
     #print(db_yellow_bar['to']-db_yellow_bar['from'],type(db_yellow_bar['to']-db_yellow_bar['from']))
@@ -929,62 +1104,7 @@ def create_graph(display_data,show_date_start,show_date_end):
         hoverinfo='skip',#hovertemplate='<extra></extra>',
         opacity=0.3
     ))
-    # shapes += [
-    #     {
-    #         "type": "rect",
-    #         "x0": x1, "x1": x2,
-    #         "y0": -100, "y1": 300,
-    #         "fillcolor": "green",
-    #         "opacity": 0.3,
-    #         "layer": "between",
-    #         #"showlegend": True,
-    #         "line": {"width": 0}
-    #     }
-    #     for x1, x2 in intervalos_ativos
-    # ]
-
-    #LEGENDAS Para simular legenda dos shapes
-    # fig.add_trace(go.Scatter(
-    #     x= [None],  # Sem dados reais
-    #     y= [None],
-    #     mode='markers',
-    #     marker=dict(color='yellow', size=16),
-    #     # legendgroup = "Leitura < 2%",
-    #     name='Leitura < 2%',  # Nome da legenda
-    #     showlegend=True
-    # ))
-    # fig.add_trace(go.Scatter(
-    #     x= [None],  # Sem dados reais
-    #     y= [None],
-    #     mode='markers',
-    #     marker=dict(color='red', size=16),
-    #     name='Desligado',  # Nome da legenda
-    #     showlegend=True
-    # ))
-    # fig.add_trace(go.Scatter(
-    #     x= [None],  # Sem dados reais
-    #     y= [None],
-    #     mode='markers',
-    #     marker=dict(color='mediumpurple', size=16),
-    #     name='Ativo Extra',  # Nome da legenda
-    #     showlegend=True
-    # ))
-    # fig.add_trace(go.Scatter(
-    #     x= [None],  # Sem dados reais
-    #     y= [None],
-    #     mode='markers',
-    #     marker=dict(color='lightblue', size=16),
-    #     name='Vazio Extra',  # Nome da legenda
-    #     showlegend=True
-    # ))
-    # fig.add_trace(go.Scatter(
-    #     x= [None],  # Sem dados reais
-    #     y= [None],
-    #     mode='markers',
-    #     marker=dict(color='lightgreen', size=16),
-    #     name='Ativo',  # Nome da legenda
-    #     showlegend=True
-    # ))
+    
 
     # Definir tamanho do y
     fig.update_traces(
@@ -1464,6 +1584,8 @@ def display_no_data(key='periodo_tempo'):
     ''')
     st.date_input('Filtro Leitura',key='periodo_tempo')
 
+TEST_MODE = False #True
+
 #st.json(dados_intervalos)
 if periodo_inicio:
     print(f'\nTEMPO INICIALIZANDO: {time() - START}')
@@ -1490,7 +1612,7 @@ if periodo_inicio:
     print(F'PERIODO FIM APÓS {periodo_fim}\n')
 
     if 'last_read' not in st.session_state or st.session_state.get('last_dates',[]) != [periodo_inicio, periodo_fim]: 
-        print('OP Q1')
+        # print('OP Q1')
         query = f"""
             SELECT LinhaPinturaUtilizacaoDtHr, LinhaPinturaUtilizacaoPerOcup, LinhaPinturaUtilizacaoParada
             FROM linhapinturautilizacao
@@ -1504,15 +1626,13 @@ if periodo_inicio:
         if not last_read.empty:
             st.session_state['last_read'] = last_read
             #print(last_read['LinhaPinturaUtilizacaoDtHr'].iloc[-1])
-            st.session_state['last_dates'] = [periodo_inicio, periodo_fim]
             st.session_state['last_read_time'] = last_read['LinhaPinturaUtilizacaoDtHr'].iloc[-1]
         else:
             print(f'QUERY RETORNOU VAZIO >> {query}')
     else:
-        print('OP Q2')
+        # print('OP Q2')
         print(f'TEMPO ANTES CARREGAR: {time() - START}')
         last_read = st.session_state.get('last_read')
-    
     
     print(f'\nTEMPO QUERY 3: {time() - START}')
 
@@ -1586,78 +1706,199 @@ if periodo_inicio:
     #display_data['date'] = sorted(display_data['date'])
     ####################
     media_ocupacao = 0
+    fig, percentPerHoraTrab = None, 0
+    fig_bar, min_total, min_trab, percent_trab_geral, min_parado, minutos_ligados, minutos_extras = (None,0,0,0,0,0,0)
 
     if display_data['date']:
         q_graph = Queue()
         q_bar = Queue()
 
         media_ocupacao = sum([x for x in display_data['perOcup'] if x > TOLERANCIA_ATIVO]) / len([x for x in display_data['perOcup'] if x > TOLERANCIA_ATIVO])
-        #st.markdown(media_ocupacao)
 
-        print(f'TEMPO ANTES CÓPIA {time() - START}')
+        # print(f'TEMPO ANTES CÓPIA {time() - START}')
         copia_dp_data = copy.deepcopy(display_data)
         
-        print(f'TEMPO ANTES THREAD 1 {time() - START}')
-        thread_bar = Thread(target=create_bar_graph_wrapper, args=(copia_dp_data,periodo_inicio,periodo_fim, q_bar))
-        
-        print(f'TEMPO ANTES THREAD 2 {time() - START}')
-        thread_graph = Thread(target=create_graph_wrapper, args=(display_data,periodo_inicio,periodo_fim, q_graph))
-
-        same_data = st.session_state.get('last_process',[]) == display_data
-        st.session_state['last_process'] = display_data
-        #st.markdown(f'TEMPO LEVADO ANTES THREAD {time() - START}')
-        #st.markdown(f'TEMPO LEVADO ANTES THREAD {time() - START}')
-        # Iniciar as threads
-        if not same_data or 'fig1' not in st.session_state or 'figbar' not in st.session_state:
+        # =========== último intervalos igual ao atual ? E data atual não está contida no intervalo? Existem figuras padrão e de barras ?
+        # Não, Periódo mudou> Recalcular tudo
+        if st.session_state.get('last_dates',[]) != [periodo_inicio, periodo_fim] or 'fig1' not in st.session_state or 'figbar' not in st.session_state: #(not same_data or 'fig1' not in st.session_state or 'figbar' not in st.session_state):
+            # print('OP1')
+            # print(f'TEMPO ANTES THREAD 1 {time() - START}')
+            thread_bar = Thread(target=create_bar_graph_wrapper, args=(copia_dp_data,periodo_inicio,periodo_fim, q_bar))
+            
+            # print(f'TEMPO ANTES THREAD 2 {time() - START}')
+            thread_graph = Thread(target=create_graph_wrapper, args=(display_data,periodo_inicio,periodo_fim, q_graph))
+            
             thread_graph.start()
             thread_bar.start()
 
             # Esperar que ambas terminem
             thread_graph.join()
             thread_bar.join()
-            # st.markdown(f'TEMPO LEVADO THREADS {time() - START}')
-            print((f'TEMPO LEVADO THREADS {time() - START}'))
+            # print((f'TEMPO LEVADO THREADS {time() - START}'))
 
             fig, percentPerHoraTrab, display_data = q_graph.get()
             fig_bar, min_total, min_trab, percent_trab_geral, min_parado, minutos_ligados, minutos_extras = q_bar.get()
 
             st.session_state['fig1'] = (fig, percentPerHoraTrab, display_data)
             st.session_state['figbar'] = (fig_bar, min_total, min_trab, percent_trab_geral, min_parado, minutos_ligados, minutos_extras)
+            st.session_state['last_dates'] = [periodo_inicio, periodo_fim]
+            st.session_state['last_process'] = display_data
+            st.session_state['last_processed_read_time'] = st.session_state.get('last_read_time')
+
+        # Não, periodo é o mesmo mas data atual está contida no intervalo> Calcular apenas da data a atual e adicionar ao processamento geral
+        elif TEST_MODE or periodo_inicio <= datetime.now().date() <= periodo_fim - timedelta(days=1) and st.session_state.get('last_processed_read_time') != st.session_state.get('last_read_time'):#not st.session_state.get('last_process',pd.DataFrame()).equals(display_data):
+            # Cálcular intervalos não processados e mesclar com antigos
+            # print('OP2')
+        ##################### CONTINUAR UTILIZAR DE BASE:
+            #st.markdown(f'TEMPO ANTES CARREGAR: {time() - START}')
+            
+            last_read_time = st.session_state.get('last_processed_read_time')
+
+            # print(f'LAST READ ANTERIOR: {last_read_time} {type(last_read_time)}')
+
+        ####### COMO PEGAR OS DADOS MAIS RECENTES? PARA PROCESSAR sql(possível lag) ou session state (leve atraso por ser adquirido no processamento anterior)?
+            # CONSULTAR sql OU JÁ CONSULTAR NO ANTERIOR ?
+            #st.markdown(f'Tempo antes consulta recentes {time() - START}')
+            query = f"""
+                SELECT LinhaPinturaUtilizacaoDtHr, LinhaPinturaUtilizacaoPerOcup, LinhaPinturaUtilizacaoParada
+                FROM linhapinturautilizacao
+                WHERE LinhaPinturaUtilizacaoDtHr > '{last_read_time}'
+                ORDER BY LinhaPinturaUtilizacaoDtHr ASC
+                LIMIT 100;
+            """ # GROUP BY LinhaPinturaUtilizacaoDtHr
+            newest_read = pd.read_sql(query, engine)
+            #st.markdown(f'Tempo depois consulta recentes {time() - START}')
+
+            print(F'CONSULTADA NOVO LAST READ {newest_read}')
+            last_read = st.session_state.get('last_read') # PEGA DADOS DO ÚLTIMO PROCESSAMENTO
+            if not newest_read.empty:
+                last_read = pd.concat([last_read, newest_read], ignore_index=True)
+                test_acumulator = [newest_read['LinhaPinturaUtilizacaoDtHr'].to_list(),newest_read['LinhaPinturaUtilizacaoPerOcup'].to_list()]
+            elif TEST_MODE:
+                test_acumulator = st.session_state.get('test_acumulator')
+            else:
+                test_acumulator = []
+            
+            print(f'Test_acumulator: {test_acumulator}')
+            if test_acumulator:
+                st.session_state['last_read'] = last_read # SALVA DADOS CONCATENADOS
+
+                st.session_state['last_read_time'] = last_read['LinhaPinturaUtilizacaoDtHr'].iloc[-1]
+                st.session_state['last_processed_read_time'] = st.session_state.get('last_read_time')    
+                st.session_state['last_process'] = pd.DataFrame(display_data)
+
+                fig, percentPerHoraTrab, display_data = st.session_state.get('fig1')
+                fig_bar, min_total, min_trab, percent_trab_geral, min_parado, minutos_ligados, minutos_extras = st.session_state.get('figbar')
+
+                for i in range(len(test_acumulator[0])):
+                    if isinstance(test_acumulator[0][i],pd.Timestamp):
+                        test_acumulator[0][i] = test_acumulator[0][i].to_pydatetime()
+                    else:
+                        test_acumulator[0][i] = test_acumulator[0][i].item()
+
+                ### 2 CÁLCULAR TODOS OS INTERVALOS e adicionar a gráfico como barras (NO LUGAR DE TESTES)
+                #       Começando sem "- 0.5" para se unir a barras anteriores
+                last_data = list(fig.data[0].x)[-1]
+                if pd.to_datetime(last_data).date() != datetime.today().date():
+                    last_data = dados_intervalos[DIA_SEM_ATUAL]['TurnoProdutivoHrEntrada']
+                    if test_acumulator[0] < dados_intervalos[DIA_SEM_ATUAL]['TurnoProdutivoHrEntrada']:
+                        last_data = test_acumulator[0] - timedelta(seconds=0.1)
+
+                # print(f'Enviando last_data {last_data}')
+
+                display_data, intervalos_inativo, intervalos_desativado, intervalos_ativos, intervalo_ativado_extra, intervalos_inativo_extra, df_yellow_bar, df_red_bar, df_purple_bar, df_lightblue_bar, df_green_bar = process_part(test_acumulator, periodo_inicio, periodo_fim, last_data, datetime.now())
+                percentPerHoraTrab = calcular_media_porcentagem_por_tempo_trabalhando(display_data)
+                
+                # print(f'Recebido dados linha: {display_data}')
+
+                # amarelo
+                if not df_yellow_bar.empty:
+                    print(f'BARRA YELLOW {df_yellow_bar}\n\t INTERVALO {intervalos_inativo}')
+                    fig.data[1].width = np.concatenate([fig.data[1].width, df_yellow_bar['to'].to_numpy()])
+                    fig.data[1].x = np.concatenate([fig.data[1].x, df_yellow_bar['from'].to_numpy()])
+                    fig.data[1].y = np.concatenate([fig.data[1].y, df_yellow_bar['size'].to_numpy()])
+                    fig.data[1].offset = np.concatenate([fig.data[1].offset, df_yellow_bar['offset'].to_numpy()])
+
+                # vermelho
+                if not df_red_bar.empty:
+                    print(f'BARRA RED {df_red_bar}\n\t INTERVALO {intervalos_desativado}')
+                    fig.data[2].width = np.concatenate([fig.data[2].width, df_red_bar['to'].to_numpy()])
+                    fig.data[2].x = np.concatenate([fig.data[2].x, df_red_bar['from'].to_numpy()])
+                    fig.data[2].y = np.concatenate([fig.data[2].y, df_red_bar['size'].to_numpy()])
+                    fig.data[2].offset = np.concatenate([fig.data[2].offset, df_red_bar['offset'].to_numpy()])
+
+                # roxo
+                #fig.data[3]
+
+                # azul
+                #fig.data[4]
+
+                # verde
+                if not df_green_bar.empty:
+                    print(f'BARRA GREEN {df_green_bar}\n\t INTERVALO {intervalos_ativos}')
+                    fig.data[5].width = np.concatenate([fig.data[5].width, df_green_bar['to'].to_numpy()])
+                    fig.data[5].x = np.concatenate([fig.data[5].x, df_green_bar['from'].to_numpy()])
+                    fig.data[5].y = np.concatenate([fig.data[5].y, df_green_bar['size'].to_numpy()])
+                    fig.data[5].offset = np.concatenate([fig.data[5].offset, df_green_bar['offset'].to_numpy()])
+                
+                ################## COMO modificar último ? 
+                    
+
+                # Adicionar vazio no instante anterior
+                #print((display_data.loc[0, 'date'] - timedelta(seconds=0.1)).to_pydatetime())
+                #display_data = pd.concat([pd.DataFrame({'date':[(display_data.loc[0, 'date'] - timedelta(seconds=0.1)).to_pydatetime()],'perOcup':[0]}), display_data]).reset_index(drop=True)
+
+                for i in range(len(display_data['date'])):
+                    # print(display_data.loc[i, 'date'],type(display_data.loc[i, 'date']))
+                    display_data.loc[i, 'date'] = np.datetime64(display_data.loc[i, 'date'])
+                    # print('convertendo {} {}'.format(display_data['date'].iloc[i],type(display_data['date'].iloc[i])))
+
+                ### 1. ADICIONAR AO GRÁFICO DE LINHAS (NO LUGAR DE TESTES
+                fig.data[0].x = np.array(list(fig.data[0].x) + list(display_data['date']),dtype='datetime64[ns]')
+                fig.data[0].y = np.array(list(fig.data[0].y) + list(display_data['perOcup']))
+
+                ### 3 mesmo esquema para gráfico de barras? Ou gráfico de barras é rápido e pode ser executado inteiro ?
+
+                st.session_state['fig1'] = (fig, percentPerHoraTrab, display_data)
+                # st.session_state['figbar'] = (fig_bar, min_total, min_trab, percent_trab_geral, min_parado, minutos_ligados, minutos_extras)
+            else:
+                fig, percentPerHoraTrab, display_data = st.session_state.get('fig1')
+                fig_bar, min_total, min_trab, percent_trab_geral, min_parado, minutos_ligados, minutos_extras = st.session_state.get('figbar')    
+        # Sim> Ignorar e utilizar último cálculo
         else:
+            # print('OP3')
             fig, percentPerHoraTrab, display_data = st.session_state.get('fig1')
             fig_bar, min_total, min_trab, percent_trab_geral, min_parado, minutos_ligados, minutos_extras = st.session_state.get('figbar')
-        last_layout = st.session_state.get('layout',[])
-        print(f'LAYOUT ?? {last_layout}')
-        if last_layout: # not same_data and 
-            last_value_y = display_data['date'].iloc[-1]
-            print(f'xaxis: {last_layout.xaxis.range} <{last_layout.xaxis.range[1]} > {last_value_y}> ({type(last_layout.xaxis.range[1])} > {type(last_value_y)})')
-            if pd.Timestamp(last_layout.xaxis.range[1]) > last_value_y:
-                # ativar de novo automaticamente atualizar
-                #st.session_state['show_last'] = True
-                last_layout.xaxis.range = (last_layout.xaxis.range[0], last_value_y)
-            else:
-                #st.session_state['show_last'] = False
-                pass
-            fig.update_xaxes(
-                tickmode='auto',  # Modo automático para ajustar os ticks
-                dtick=3600000,   # Intervalo de 1 hora (em milissegundos)
-                range=last_layout.xaxis.range,
-                #tickformat='%H:%M',  # Formato de exibição das horas
-                rangeslider={"visible":True}  # Adiciona um rangeslider para facilitar o zoom
-            )
-        else:
-            print('Sem Layout')
+        # last_layout = st.session_state.get('layout',[])
+        # print(f'LAYOUT ?? {last_layout}')
+        # if last_layout: # not same_data and 
+        #     last_value_y = display_data['date'].iloc[-1]
+        #     print(f'xaxis: {last_layout.xaxis.range} <{last_layout.xaxis.range[1]} > {last_value_y}> ({type(last_layout.xaxis.range[1])} > {type(last_value_y)})')
+        #     if pd.Timestamp(last_layout.xaxis.range[1]) > last_value_y:
+        #         # ativar de novo automaticamente atualizar
+        #         #st.session_state['show_last'] = True
+        #         last_layout.xaxis.range = (last_layout.xaxis.range[0], last_value_y)
+        #     else:
+        #         #st.session_state['show_last'] = False
+        #         pass
+        #     fig.update_xaxes(
+        #         tickmode='auto',  # Modo automático para ajustar os ticks
+        #         dtick=3600000,   # Intervalo de 1 hora (em milissegundos)
+        #         range=last_layout.xaxis.range,
+        #         #tickformat='%H:%M',  # Formato de exibição das horas
+        #         rangeslider={"visible":True}  # Adiciona um rangeslider para facilitar o zoom
+        #     )
+        # else:
+        #     print('Sem Layout')
 
         # st.markdown(f'TEMPO LEVADO DEPOIS THREAD {time() - START}')
         #st.markdown(f'Tempo Processamento: {time() - START}')
     else:
-        fig, percentPerHoraTrab = None, 0
-        fig_bar, min_total, min_trab, percent_trab_geral, min_parado, minutos_ligados, minutos_extras = (None,0,0,0,0,0,0)
-        #display_no_data()
+        pass
 
-    show_pause_button()
+    #show_pause_button()
     #count = st_autorefresh(interval= 5 * 1 * 1000, key="dataframerefresh")
-
+    
     col1,col2 = st.columns([2,10])
     with col1:
         #if min_total is not None and minutos_parados is not None  and minutos_trabalhados is not None: 
@@ -1713,7 +1954,7 @@ if periodo_inicio:
                 x=[periodo_inicio, periodo_fim], 
                 y=[0, 0], 
                 mode='markers', #
-                name='Linha principal'))
+                name='Leitura Sensores'))
             fig.update_layout(
                 showlegend=True,
                 yaxis=dict(range=[0, 100]),
@@ -1738,34 +1979,35 @@ if periodo_inicio:
         with st.container(border=True):
             #graf_event = plotly_mapbox_events(fig, click_event=True, select_event=True, hover_event=True, relayout_event=True)#, relayout_event=True)
             #st.markdown(f'EVENTO: {graf_event}')
-            st.markdown(f'Tempo ANTES gráfico 1: {time() - START}')
+            #st.markdown(f'Tempo ANTES gráfico 1: {time() - START}')
 
             v = my_component(fig,change_flag={'dates': [periodo_inicio.isoformat(), (periodo_fim-timedelta(days=1)).isoformat()]})
-            st.markdown(f'RECEBIDO> {v}')
-            if v and v != 'reset':
-                new_layout = go.Layout(
-                    # yaxis=dict(
-                    #     range=[0, 100]
-                    # ),
-                    xaxis=dict(
-                        range=[v[0], v[1]]
-                    )
-                )
+            #st.plotly_chart(fig,key='gráfico')
+            # st.markdown(f'RECEBIDO> {v}')
+            # if v and v != 'reset':
+            #     new_layout = go.Layout(
+            #         # yaxis=dict(
+            #         #     range=[0, 100]
+            #         # ),
+            #         xaxis=dict(
+            #             range=[v[0], v[1]]
+            #         )
+            #     )
 
-                if 'layout' not in st.session_state or new_layout != st.session_state.get('layout'):
-                    print(f'LAYOUT SALVAR {new_layout}')
-                    st.session_state['layout'] = new_layout
-                    st.rerun()
-                else:
-                    print('Não salvar layout {} or {}'.format('layout' not in st.session_state, new_layout != st.session_state.get('layout')))
-                    print(st.session_state.get('layout'))
-            else:
-                if 'layout' in st.session_state:
-                    del st.session_state['layout']
-                    st.rerun()
-            st.markdown(f'RECEBIDO1 > {v}')
+            #     if 'layout' not in st.session_state or new_layout != st.session_state.get('layout'):
+            #         print(f'LAYOUT SALVAR {new_layout}')
+            #         st.session_state['layout'] = new_layout
+            #         st.rerun()
+            #     else:
+            #         print('Não salvar layout {} or {}'.format('layout' not in st.session_state, new_layout != st.session_state.get('layout')))
+            #         print(st.session_state.get('layout'))
+            # else:
+            #     if 'layout' in st.session_state:
+            #         del st.session_state['layout']
+            #         st.rerun()
+            # st.markdown(f'RECEBIDO1 > {v}')
 
-            st.plotly_chart(fig,key='gráfico')
+            
         #st.markdown(f'Tempo Carregar gráfico 1: {time() - START}')
         if fig_bar is None: # MOSTRAR FIG BARRA VAZIA
             fig_bar = go.Figure()
@@ -1823,54 +2065,62 @@ if periodo_inicio:
 else:
     display_no_data()
 
+# Salvar últimos dados processados e adicionar os novos registros da data a tual se estiver inclusa no intervalo
+# if 'last_read' not in st.session_state or st.session_state.get('last_dates',[]) != [periodo_inicio, periodo_fim]: 
+#         query = f"""
+#             SELECT LinhaPinturaUtilizacaoDtHr, LinhaPinturaUtilizacaoPerOcup, LinhaPinturaUtilizacaoParada
+#             FROM linhapinturautilizacao
+#             WHERE LinhaPinturaUtilizacaoDtHr BETWEEN '{periodo_inicio}' AND '{periodo_fim}'
+#             GROUP BY LinhaPinturaUtilizacaoDtHr
+#             ORDER BY LinhaPinturaUtilizacaoDtHr;
+#         """
+#         #print(f'TEMPO PERIODO INICIAL {periodo_inicio}')
+
+#         last_read = pd.read_sql(query, engine)
+#         if not last_read.empty:
+#             st.session_state['last_read'] = last_read
+#             print(last_read['LinhaPinturaUtilizacaoDtHr'].iloc[-1])
+#             st.session_state['last_dates'] = [periodo_inicio, periodo_fim]
+#             st.session_state['last_read_time'] = last_read['LinhaPinturaUtilizacaoDtHr'].iloc[-1]
+# elif periodo_inicio <= datetime.now().date() <= periodo_fim - timedelta(days=1):
+#         print(f'TEMPO ANTES CARREGAR: {time() - START}')
+#         last_read = st.session_state.get('last_read')
+#         last_read_time = st.session_state.get('last_read_time')
+
+#         print(f'LAST READ ANTERIOR: {last_read_time} {type(last_read_time)}')
+
+#         print(f'TEMPO ANTES QUERY 3: {time() - START}')
+#         query = f"""
+#             SELECT LinhaPinturaUtilizacaoDtHr, LinhaPinturaUtilizacaoPerOcup, LinhaPinturaUtilizacaoParada
+#             FROM linhapinturautilizacao
+#             WHERE LinhaPinturaUtilizacaoDtHr > '{last_read_time}'
+#             ORDER BY LinhaPinturaUtilizacaoDtHr ASC
+#             LIMIT 100;
+#         """ # GROUP BY LinhaPinturaUtilizacaoDtHr
+#         newest_read = pd.read_sql(query, engine)
+        
+#         #print(f'NOVA READ {newest_read}')
+#         if not newest_read.empty:
+#             last_read = pd.concat([last_read, newest_read], ignore_index=True)
+#         st.session_state['last_read'] = last_read
+#         st.session_state['last_read_time'] = last_read['LinhaPinturaUtilizacaoDtHr'].iloc[-1]
 
 # RECARREGAR CASO NÃO ESTEJA PAUSADO
-print(f'TIPOS: {type(periodo_fim)} e {type(periodo_inicio)}\n\t {periodo_inicio} -> {periodo_fim-timedelta(days=1)} /  {datetime.now().date()}')
+#print(f'TIPOS: {type(periodo_fim)} e {type(periodo_inicio)}\n\t {periodo_inicio} -> {periodo_fim-timedelta(days=1)} /  {datetime.now().date()}')
 if st.session_state.get('var_pause',1) and (datetime.now().date() <= periodo_fim-timedelta(days=1) or datetime.now().date() == periodo_inicio):
+    #################### PARA TESTE TEMPO REAL
+    if TEST_MODE:
+        valores_aleatorios = [random.randint(0, 100) for _ in range(3)]
+        agora = datetime.now().replace(microsecond=0)
+        datetimes_ultimos_segundos = [np.datetime64(agora - timedelta(seconds=i)) for i in range(3)][::-1]
+        st.session_state['test_acumulator'] = [datetimes_ultimos_segundos, valores_aleatorios]
+
     count = st_autorefresh(interval= 5 * 1 * 1000, key="dataframerefresh")
-    st.markdown('RECARREGAR')
+    #st.markdown('RECARREGAR')
+    print('RECARREGAR')
 else:
-    st.markdown('PAUSADO')
-
-
-if 'last_read' not in st.session_state or st.session_state.get('last_dates',[]) != [periodo_inicio, periodo_fim]: 
-        query = f"""
-            SELECT LinhaPinturaUtilizacaoDtHr, LinhaPinturaUtilizacaoPerOcup, LinhaPinturaUtilizacaoParada
-            FROM linhapinturautilizacao
-            WHERE LinhaPinturaUtilizacaoDtHr BETWEEN '{periodo_inicio}' AND '{periodo_fim}'
-            GROUP BY LinhaPinturaUtilizacaoDtHr
-            ORDER BY LinhaPinturaUtilizacaoDtHr;
-        """
-        #print(f'TEMPO PERIODO INICIAL {periodo_inicio}')
-
-        last_read = pd.read_sql(query, engine)
-        if not last_read.empty:
-            st.session_state['last_read'] = last_read
-            print(last_read['LinhaPinturaUtilizacaoDtHr'].iloc[-1])
-            st.session_state['last_dates'] = [periodo_inicio, periodo_fim]
-            st.session_state['last_read_time'] = last_read['LinhaPinturaUtilizacaoDtHr'].iloc[-1]
-elif periodo_inicio <= datetime.now().date() <= periodo_fim - timedelta(days=1):
-        print(f'TEMPO ANTES CARREGAR: {time() - START}')
-        last_read = st.session_state.get('last_read')
-        last_read_time = st.session_state.get('last_read_time')
-
-        print(f'LAST READ ANTERIOR: {last_read_time} {type(last_read_time)}')
-
-        print(f'TEMPO ANTES QUERY 3: {time() - START}')
-        query = f"""
-            SELECT LinhaPinturaUtilizacaoDtHr, LinhaPinturaUtilizacaoPerOcup, LinhaPinturaUtilizacaoParada
-            FROM linhapinturautilizacao
-            WHERE LinhaPinturaUtilizacaoDtHr > '{last_read_time}'
-            ORDER BY LinhaPinturaUtilizacaoDtHr ASC
-            LIMIT 100;
-        """ # GROUP BY LinhaPinturaUtilizacaoDtHr
-        newest_read = pd.read_sql(query, engine)
-        
-        #print(f'NOVA READ {newest_read}')
-        if not newest_read.empty:
-            last_read = pd.concat([last_read, newest_read], ignore_index=True)
-
-        st.session_state['last_read'] = last_read
-        st.session_state['last_read_time'] = last_read['LinhaPinturaUtilizacaoDtHr'].iloc[-1]
+    #st.markdown('PAUSADO')
+    print('PAUSADO')
+    pass
 
 print('\nCONCLUÍDO\n')

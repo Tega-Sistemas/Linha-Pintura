@@ -185,13 +185,6 @@ plotLayout['dragmode'] = saved_dragmode
           
           console.log('DEFININDO LAYOUT',layout);
           setPlotLayout(layout);
-          // setLayout((prev) => ({
-        //   ...prev,
-        //   xaxis: {
-        //     ...prev.xaxis,
-        //     range: [eventData['xaxis.range[0]'], eventData['xaxis.range[1]']],
-        //   },
-        // }));
       } else if (eventData['xaxis.range'] && eventData['xaxis.range'][0] && eventData['xaxis.range'][1]){
           //Streamlit.setComponentValue([eventData['xaxis.range'][0], eventData['xaxis.range'][1]])
           
@@ -237,9 +230,7 @@ plotLayout['dragmode'] = saved_dragmode
     };
 
 
-    // const handleUpdate = (eventData: any) => {
-    //   console.log('Test Updates',eventData)
-    // };
+    // const handleUpdate = (eventData: any) => { console.log('Test Updates',eventData)};
     // console.log('RECEBIDO Dados',props.args.spec)
 
     //console.log(' DADO DE LAYOUT PARA CARREGAR GRÁFICO', layout['xaxis'])
