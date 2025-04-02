@@ -1385,6 +1385,8 @@ def create_bar_graph(display_data,show_date_start,show_date_end):
     ))#,row=1,col=1)
 
     fig_bar.update_layout(
+        bargap=0,
+        bargroupgap=0,
         #title="Gráfico de Barras ",
         yaxis=dict(
             zeroline=True,

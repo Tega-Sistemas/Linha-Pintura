@@ -48,19 +48,51 @@ import Plot from "react-plotly.js"
 // }
 
 function MyComponent(props: ComponentProps) {
+  const [forceUpdate, setForceUpdate] = useState(0);
+
     //Inicializar
     useEffect(() => {
       Streamlit.setFrameHeight();
       Streamlit.setComponentReady();
       localStorage.setItem('xaxis_autorange','true');
     }, []);
-    
+
     const { data, layout, frames, config } = JSON.parse(props.args.spec);
     const [plotLayout, setPlotLayout] = useState(layout);
 
     let change_flag = props.args.change_flag['dates'];
     const tema = props.args.theme;
     
+
+    const saved_showLegend = JSON.parse(localStorage.getItem('showLegend') || '[]');
+    if (saved_showLegend.length === 0){
+      const n = data.length
+      const novo_array = new Array(n).fill(null)
+      data.map((traceData: any, index: number) => {
+        console.log('ANALISANDO', traceData)
+        if ('visible' in traceData){
+          if(traceData['visible'] === 'legendonly'){
+            novo_array[index] = 'legendonly';
+          } else if (traceData['visible'] === true){
+            novo_array[index] = true;
+          }else {
+            novo_array[index] = false;
+          }
+        }else{
+          novo_array[index] = false;
+        }
+        return novo_array[index];
+        })
+        console.log('ARRAY RESULTANTE',novo_array);
+        localStorage.setItem('showLegend',JSON.stringify(novo_array));
+    }else{
+       console.log('Array já existe',saved_showLegend);
+    }
+
+    
+
+    
+
     console.log('=========Recebida flag de mudança', change_flag);
     if (typeof change_flag[0] === 'string'){
       change_flag[0] = new Date(`${change_flag[0]}T00:00:00`);
@@ -141,6 +173,45 @@ plotLayout['dragmode'] = saved_dragmode
 //////////// handleLegendClick
 const handleLegendClick = (eventData: any) => {
   console.log('INTERAÇÃO LEGENDA', eventData.curveNumber);
+  console.log('data',data)
+  const n = data.length
+      const novo_array = new Array(n).fill(null)
+      data.map((traceData: any, index: number) => {
+        console.log('ANALISANDO', traceData,index)
+        if (eventData.curveNumber === index){
+          console.log('op1')
+          if(traceData['visible'] === 'legendonly'){
+            console.log('1.1')
+            novo_array[index] = true;
+          } else {
+            console.log('1.2')
+            novo_array[index] = 'legendonly';
+          }
+        } else if ('visible' in traceData){
+          console.log('op2')
+          if(traceData['visible'] === 'legendonly'){
+            console.log('2.1')
+            novo_array[index] = 'legendonly';
+          } else if (traceData['visible'] === true){
+            console.log('2.2')
+            novo_array[index] = true;
+          }else {
+            console.log('2.3')
+            novo_array[index] = false;
+          }
+        }else{
+          console.log('op3')
+          novo_array[index] = false;
+        }
+        return novo_array[index];
+        })
+      console.log('ARRAY RESULTANTE',novo_array);
+      localStorage.setItem('showLegend',JSON.stringify(novo_array));
+      //setForceUpdate(prev => 1 - prev);
+  return true;
+};
+const handleLegendDoubleClick = (eventData: any) => {
+  console.log('INTERAÇÃO LEGENDA double', eventData.curveNumber);
 
   return true;
 };
@@ -255,6 +326,17 @@ const handleRelayout = (eventData: any) => {
     //SISTEMA PARA ATUALIZAR BACKGROUND (já ajusto no python)
     plotLayout['plot_bgcolor'] = 'rgba(240, 240, 240, 0)'
     
+
+    const saved_showLegend_load = JSON.parse(localStorage.getItem('showLegend') || '[]');
+    saved_showLegend_load.forEach((legendVisible:any, index:number) => {
+      if (legendVisible === true){
+        data[index]['visible'] = legendVisible 
+      }else if (legendVisible === 'legendonly'){
+        data[index]['visible'] = legendVisible
+      }
+    })
+
+
     console.log(tema)
     if (tema === 'light'){
       plotLayout['paper_bgcolor'] = 'rgba(255, 255, 255, 0.9)';
@@ -268,8 +350,11 @@ const handleRelayout = (eventData: any) => {
       //plotLayout['modebar'] = { color: 'lightgray', activecolor: 'white',bgcolor: 'rgba(0, 0, 0, 0.7)' };
     }
     plotLayout['modebar'] = { color: 'darkgray', activecolor: 'white' ,bgcolor: 'rgba(0 0, 0, 0.7)'};
+    plotLayout['legend'] = {...plotLayout.legend, 'itemdoubleclick':false} 
     console.log('tema',tema)
     console.log(plotLayout)
+
+    console.log('data',data)
 
     return (
       <Plot
@@ -277,6 +362,7 @@ const handleRelayout = (eventData: any) => {
         layout={plotLayout}
         onRelayout={handleRelayout}
         onLegendClick={handleLegendClick}
+        // onLegendDoubleClick={handleLegendDoubleClick}
         style={{ width: "100%", height: "100%" }}//useResizeHandler={true}
         frames={frames}
         // onUpdate={handleUpdate}
