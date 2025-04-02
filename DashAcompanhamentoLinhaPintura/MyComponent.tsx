@@ -61,8 +61,7 @@ function MyComponent(props: ComponentProps) {
     const [plotLayout, setPlotLayout] = useState(layout);
 
     let change_flag = props.args.change_flag['dates'];
-    const tema = props.args.theme;
-    
+    const theme = props.theme?.base || 'light';//props.args.theme;
 
     const saved_showLegend = JSON.parse(localStorage.getItem('showLegend') || '[]');
     if (saved_showLegend.length === 0){
@@ -89,9 +88,6 @@ function MyComponent(props: ComponentProps) {
        console.log('Array já existe',saved_showLegend);
     }
 
-    
-
-    
 
     console.log('=========Recebida flag de mudança', change_flag);
     if (typeof change_flag[0] === 'string'){
@@ -175,6 +171,8 @@ const handleLegendClick = (eventData: any) => {
   console.log('INTERAÇÃO LEGENDA', eventData.curveNumber);
   console.log('data',data)
   const n = data.length
+  const last_a = JSON.parse(localStorage.getItem('showLegend') || '[]')
+  if (last_a.length === 0){
       const novo_array = new Array(n).fill(null)
       data.map((traceData: any, index: number) => {
         console.log('ANALISANDO', traceData,index)
@@ -205,19 +203,32 @@ const handleLegendClick = (eventData: any) => {
         }
         return novo_array[index];
         })
-      console.log('ARRAY RESULTANTE',novo_array);
-      localStorage.setItem('showLegend',JSON.stringify(novo_array));
+        console.log('ARRAY RESULTANTE',novo_array);
+        localStorage.setItem('showLegend',JSON.stringify(novo_array));
+  } else{
+    if(last_a[eventData.curveNumber] === 'legendonly'){
+      console.log('1.1')
+      last_a[eventData.curveNumber] = true;
+    } else {
+      console.log('1.2')
+      last_a[eventData.curveNumber] = 'legendonly';
+    }
+    console.log('ARRAY RESULTANTE',last_a);
+    localStorage.setItem('showLegend',JSON.stringify(last_a));
+  }
+
+      
       //setForceUpdate(prev => 1 - prev);
   return true;
-};
-const handleLegendDoubleClick = (eventData: any) => {
-  console.log('INTERAÇÃO LEGENDA double', eventData.curveNumber);
+  };
+  const handleLegendDoubleClick = (eventData: any) => {
+    console.log('INTERAÇÃO LEGENDA double', eventData.curveNumber);
 
-  return true;
-};
+    return true;
+  };
 
 //////////// handleRelayout
-const handleRelayout = (eventData: any) => {
+  const handleRelayout = (eventData: any) => {
       const data_atual = new Date();
       const savedRange = localStorage.getItem('xaxis_range');
       console.log('LAST DATA', savedRange);
@@ -337,13 +348,13 @@ const handleRelayout = (eventData: any) => {
     })
 
 
-    console.log(tema)
-    if (tema === 'light'){
+    console.log(theme)
+    if (theme === 'light'){
       plotLayout['paper_bgcolor'] = 'rgba(255, 255, 255, 0.9)';
       plotLayout['template'] = 'plotly';
       plotLayout['font']['color'] = 'black';
       //plotLayout['modebar'] = { color: 'darkgray', activecolor: 'white' ,bgcolor: 'rgba(0 0, 0, 0.7)'};
-    } else if (tema === 'dark'){
+    } else if (theme === 'dark'){
       plotLayout['paper_bgcolor'] = 'rgba(0, 0, 0, 0.9)';
       plotLayout['template'] = 'plotly_dark';
       plotLayout['font']['color'] = 'white';
@@ -351,10 +362,11 @@ const handleRelayout = (eventData: any) => {
     }
     plotLayout['modebar'] = { color: 'darkgray', activecolor: 'white' ,bgcolor: 'rgba(0 0, 0, 0.7)'};
     plotLayout['legend'] = {...plotLayout.legend, 'itemdoubleclick':false} 
-    console.log('tema',tema)
+    console.log('tema',theme)
     console.log(plotLayout)
 
     console.log('data',data)
+    console.log('ARRAY DAS LEGENDAS', saved_showLegend_load)
 
     return (
       <Plot
@@ -370,6 +382,7 @@ const handleRelayout = (eventData: any) => {
         config={{
           'showLink': false,
           'displaylogo': false,
+          'showTips':false,
           'modeBarButtonsToRemove': ['resetScale2d','lasso2d','select2d'],
           'toImageButtonOptions': {
             // Pode ser configurado aqui também
