@@ -136,6 +136,15 @@ function MyComponent(props: ComponentProps) {
   }
 
 plotLayout['dragmode'] = saved_dragmode
+
+
+//////////// handleLegendClick
+const handleLegendClick = (eventData: any) => {
+  console.log('INTERAÇÃO LEGENDA', eventData.curveNumber);
+
+  return true;
+};
+
 //////////// handleRelayout
 const handleRelayout = (eventData: any) => {
       const data_atual = new Date();
@@ -267,6 +276,7 @@ const handleRelayout = (eventData: any) => {
         data={data}
         layout={plotLayout}
         onRelayout={handleRelayout}
+        onLegendClick={handleLegendClick}
         style={{ width: "100%", height: "100%" }}//useResizeHandler={true}
         frames={frames}
         // onUpdate={handleUpdate}

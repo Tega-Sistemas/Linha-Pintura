@@ -1622,6 +1622,7 @@ if periodo_inicio:
 
     print(F'PERIODO FIM APÓS {periodo_fim}\n')
 
+    # EXECUTA NOVA CONSULTA AO DETECTAR MUDANÇAS NO INTERVALO DE DATAS
     if 'last_read' not in st.session_state or st.session_state.get('last_dates',[]) != [periodo_inicio, periodo_fim]: 
         # print('OP Q1')
         query = f"""
@@ -1732,7 +1733,7 @@ if periodo_inicio:
         # =========== último intervalos igual ao atual ? E data atual não está contida no intervalo? Existem figuras padrão e de barras ?
         # Não, Periódo mudou> Recalcular tudo
         if st.session_state.get('last_dates',[]) != [periodo_inicio, periodo_fim] or 'fig1' not in st.session_state or 'figbar' not in st.session_state: #(not same_data or 'fig1' not in st.session_state or 'figbar' not in st.session_state):
-            # print('OP1')
+            print('OP1')
             # print(f'TEMPO ANTES THREAD 1 {time() - START}')
             thread_bar = Thread(target=create_bar_graph_wrapper, args=(copia_dp_data,periodo_inicio,periodo_fim, q_bar))
             
@@ -1759,7 +1760,7 @@ if periodo_inicio:
         # Não, periodo é o mesmo mas data atual está contida no intervalo> Calcular apenas da data a atual e adicionar ao processamento geral
         elif TEST_MODE or periodo_inicio <= datetime.now().date() <= periodo_fim - timedelta(days=1) and st.session_state.get('last_processed_read_time') != st.session_state.get('last_read_time'):#not st.session_state.get('last_process',pd.DataFrame()).equals(display_data):
             # Cálcular intervalos não processados e mesclar com antigos
-            # print('OP2')
+            print('OP2')
         ##################### CONTINUAR UTILIZAR DE BASE:
             #st.markdown(f'TEMPO ANTES CARREGAR: {time() - START}')
             
@@ -1877,7 +1878,7 @@ if periodo_inicio:
                 fig_bar, min_total, min_trab, percent_trab_geral, min_parado, minutos_ligados, minutos_extras = st.session_state.get('figbar')    
         # Sim> Ignorar e utilizar último cálculo
         else:
-            # print('OP3')
+            print('OP3', st.session_state.get('last_processed_read_time'),st.session_state.get('last_read_time'))
             fig, percentPerHoraTrab, display_data = st.session_state.get('fig1')
             fig_bar, min_total, min_trab, percent_trab_geral, min_parado, minutos_ligados, minutos_extras = st.session_state.get('figbar')
         # last_layout = st.session_state.get('layout',[])
@@ -2101,34 +2102,35 @@ else:
 #         """
 #         #print(f'TEMPO PERIODO INICIAL {periodo_inicio}')
 
-#         last_read = pd.read_sql(query, engine)
-#         if not last_read.empty:
+        # last_read = pd.read_sql(query, engine)
+        # if not last_read.empty:
 #             st.session_state['last_read'] = last_read
 #             print(last_read['LinhaPinturaUtilizacaoDtHr'].iloc[-1])
 #             st.session_state['last_dates'] = [periodo_inicio, periodo_fim]
-#             st.session_state['last_read_time'] = last_read['LinhaPinturaUtilizacaoDtHr'].iloc[-1]
-# elif periodo_inicio <= datetime.now().date() <= periodo_fim - timedelta(days=1):
-#         print(f'TEMPO ANTES CARREGAR: {time() - START}')
-#         last_read = st.session_state.get('last_read')
-#         last_read_time = st.session_state.get('last_read_time')
+            # st.session_state['last_read_time'] = last_read['LinhaPinturaUtilizacaoDtHr'].iloc[-1]
+#el
+if periodo_inicio <= datetime.now().date() <= periodo_fim - timedelta(days=1):
+        print(f'TEMPO ANTES CARREGAR: {time() - START}')
+        last_read = st.session_state.get('last_read')
+        last_read_time = st.session_state.get('last_read_time')
 
 #         print(f'LAST READ ANTERIOR: {last_read_time} {type(last_read_time)}')
 
 #         print(f'TEMPO ANTES QUERY 3: {time() - START}')
-#         query = f"""
-#             SELECT LinhaPinturaUtilizacaoDtHr, LinhaPinturaUtilizacaoPerOcup, LinhaPinturaUtilizacaoParada
-#             FROM linhapinturautilizacao
-#             WHERE LinhaPinturaUtilizacaoDtHr > '{last_read_time}'
-#             ORDER BY LinhaPinturaUtilizacaoDtHr ASC
-#             LIMIT 100;
-#         """ # GROUP BY LinhaPinturaUtilizacaoDtHr
-#         newest_read = pd.read_sql(query, engine)
+        query = f"""
+            SELECT LinhaPinturaUtilizacaoDtHr, LinhaPinturaUtilizacaoPerOcup, LinhaPinturaUtilizacaoParada
+            FROM linhapinturautilizacao
+            WHERE LinhaPinturaUtilizacaoDtHr > '{last_read_time}'
+            ORDER BY LinhaPinturaUtilizacaoDtHr ASC
+            LIMIT 100;
+        """ # GROUP BY LinhaPinturaUtilizacaoDtHr
+        newest_read = pd.read_sql(query, engine)
         
-#         #print(f'NOVA READ {newest_read}')
-#         if not newest_read.empty:
-#             last_read = pd.concat([last_read, newest_read], ignore_index=True)
+        #print(f'NOVA READ {newest_read}')
+        if not newest_read.empty:
+            last_read = pd.concat([last_read, newest_read], ignore_index=True)
 #         st.session_state['last_read'] = last_read
-#         st.session_state['last_read_time'] = last_read['LinhaPinturaUtilizacaoDtHr'].iloc[-1]
+        st.session_state['last_read_time'] = last_read['LinhaPinturaUtilizacaoDtHr'].iloc[-1]
 
 # RECARREGAR CASO NÃO ESTEJA PAUSADO
 #print(f'TIPOS: {type(periodo_fim)} e {type(periodo_inicio)}\n\t {periodo_inicio} -> {periodo_fim-timedelta(days=1)} /  {datetime.now().date()}')
