@@ -18,11 +18,20 @@ from dotenv import load_dotenv,find_dotenv
 from datetime import datetime, timedelta
 from threading import Thread
 import streamlit.components.v1 as components
+from streamlit_theme import st_theme
 
 load_dotenv(find_dotenv())
-
 #from streamlit_plotly_mapbox_events import plotly_mapbox_events
 st.set_page_config(layout='wide')
+
+theme_info = st_theme(adjust=False)
+
+
+print(f'CARREGADO {theme_info} {type(theme_info)}')
+if theme_info and theme_info.get('backgroundColor') == '#0e1117':
+    theme = 'dark'
+else:
+    theme = 'light'
 TOLERANCIA_ATIVO = float(os.getenv('TOLERANCIA_ATIVO'))
 #st.markdown(f'TOLERÂNCIA {TOLERANCIA_ATIVO}')
 
@@ -31,13 +40,13 @@ _component_func = components.declare_component(
     url="http://localhost:3001",
 )
 
-def my_component(fig,change_flag):
+def reactGraph(fig,theme,change_flag,key='Gráfico'):
     print(f'ENVIANDO FLAG MUDANÇA {change_flag}')
-    return _component_func(spec=fig.to_json(),change_flag=change_flag, default="",key='Gráfico') # Default para evitar None enquanto carrega
+    return _component_func(spec=fig.to_json(),change_flag=change_flag,theme=theme, default="",key=key) # Default para evitar None enquanto carrega
 
 #placeholder_graph = st.empty() # se for utilizar while invés de st_autorefresh
 
-option_theme = st.get_option("theme.base")
+# option_theme = theme
 # if option_theme == 'dark':
 #     text_color = 'white'
 # else:    
@@ -1123,10 +1132,10 @@ def create_graph(display_data,show_date_start,show_date_end):
         #     dtick=3600000/4#, # INTERVALO ENTRE DADOS em ms
         #     #tickformat="%Y-%m-%d %H:%M"
         # ),
-        template="plotly_dark" if st.get_option("theme.base") == "dark" else "plotly",
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(color="white" if st.get_option("theme.base") == "dark" else "black"),
+        # template="plotly_dark" if theme == "dark" else "plotly",
+        # paper_bgcolor="rgba(0,0,0,100)" if theme == "dark" else "rgba(255,255,255,100)",
+        # plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(color="white" if theme == "dark" else "black"),
         legend=dict(
                 font=dict(
                     size=18,  # Tamanho da fonte
@@ -1144,6 +1153,8 @@ def create_graph(display_data,show_date_start,show_date_end):
         rangeslider={"visible":True}  # Adiciona um rangeslider para facilitar o zoom
     )
     return fig, percentPerHoraTrab, display_data
+
+print('TEMA {}'.format(theme))
 
 def create_bar_graph(display_data,show_date_start,show_date_end):
     # while True:
@@ -1387,10 +1398,10 @@ def create_bar_graph(display_data,show_date_start,show_date_end):
             #tickformat="%Y-%m-%d %H:%M"
         ),
         #yaxis_tickformat=',.0f',
-        template="plotly_dark" if st.get_option("theme.base") == "dark" else "plotly",
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(color="white" if st.get_option("theme.base") == "dark" else "black"),
+        # template="plotly_dark" if theme == "dark" else "plotly",
+        # paper_bgcolor="rgba(0,0,0,100)" if theme == "dark" else "rgba(255,255,255,100)",
+        # plot_bgcolor="rgba(0,0,0,0)",
+        # font=dict(color="white" if theme == "dark" else "black"),
         legend=dict(
                 font=dict(
                     size=18,  # Tamanho da fonte
@@ -1963,10 +1974,10 @@ if periodo_inicio:
                 #     dtick=3600000/4#, # INTERVALO ENTRE DADOS em ms
                 #     #tickformat="%Y-%m-%d %H:%M"
                 # ),
-                template="plotly_dark" if st.get_option("theme.base") == "dark" else "plotly",
-                paper_bgcolor="rgba(0,0,0,0)",
-                plot_bgcolor="rgba(0,0,0,0)",
-                font=dict(color="white" if st.get_option("theme.base") == "dark" else "black"),
+                # template="plotly_dark" if theme == "dark" else "plotly",
+                # paper_bgcolor="rgba(0,0,0,100)" if theme == "dark" else "rgba(255,255,255,100)",
+                # plot_bgcolor="rgba(0,0,0,0)",
+                # font=dict(color="white" if theme == "dark" else "black"),
                 legend=dict(
                         font=dict(
                             size=18,  # Tamanho da fonte
@@ -1981,7 +1992,13 @@ if periodo_inicio:
             #st.markdown(f'EVENTO: {graf_event}')
             #st.markdown(f'Tempo ANTES gráfico 1: {time() - START}')
 
-            v = my_component(fig,change_flag={'dates': [periodo_inicio.isoformat(), (periodo_fim-timedelta(days=1)).isoformat()]})
+            # fig.update_layout(
+            #     template="plotly_dark" if theme == "dark" else "plotly",
+            #     paper_bgcolor="rgba(0,0,0,100)" if theme == "dark" else "rgba(255,255,255,100)",
+            #     font=dict(color="white" if theme == "dark" else "black"),
+            # )
+            print(f'ATUALIZANDO {theme}')
+            v = reactGraph(fig, theme, change_flag={'dates': [periodo_inicio.isoformat(), (periodo_fim-timedelta(days=1)).isoformat()]}, key='graf1')
             #st.plotly_chart(fig,key='gráfico')
             # st.markdown(f'RECEBIDO> {v}')
             # if v and v != 'reset':
@@ -2039,10 +2056,10 @@ if periodo_inicio:
                         #tickformat="%Y-%m-%d %H:%M"
                     ),
                     #yaxis_tickformat=',.0f',
-                    template="plotly_dark" if st.get_option("theme.base") == "dark" else "plotly",
-                    paper_bgcolor="rgba(0,0,0,0)",
-                    plot_bgcolor="rgba(0,0,0,0)",
-                    font=dict(color="white" if st.get_option("theme.base") == "dark" else "black"),
+                    # template="plotly_dark" if theme == "dark" else "plotly",
+                    # paper_bgcolor="rgba(0,0,0,100)" if theme == "dark" else "rgba(255,255,255,100)",
+                    # plot_bgcolor="rgba(0,0,0,0)",
+                    # font=dict(color="white" if theme == "dark" else "black"),
                     legend=dict(
                             font=dict(
                                 size=18,  # Tamanho da fonte
@@ -2052,6 +2069,14 @@ if periodo_inicio:
                     #barmode='stack'  # Para que as posições definidas sejam respeitadas
                 )
         with st.container(border=True):
+            fig_bar.update_layout(
+                template="plotly_dark" if theme == "dark" else "plotly",
+                paper_bgcolor="rgba(0,0,0,100)" if theme == "dark" else "rgba(255,255,255,100)",
+                font=dict(color="white" if theme == "dark" else "black"),
+            )
+
+        ############## IMPLEMENTAR GRÁFICO PARA BARRAS: Remover rangeslider, como aumentar tamanho do
+            #reactGraph(fig_bar,theme,change_flag={'dates': [periodo_inicio.isoformat(), (periodo_fim-timedelta(days=1)).isoformat()]},key='graf_bar')
             st.plotly_chart(fig_bar,key='gráfico_bar')
 
         #st.markdown(f'Tempo Carregar gráfico Barras: {time() - START}')

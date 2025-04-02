@@ -34,7 +34,6 @@ import Plot from "react-plotly.js"
 //     }
 // }, 1000);
 // }
-
 // function handleMouseUp(){
 //   //if (isMouseDown) {
 //   console.log("Mouse liberado");
@@ -49,20 +48,19 @@ import Plot from "react-plotly.js"
 // }
 
 function MyComponent(props: ComponentProps) {
-  //  const [plotSpec, setPlotSpec] = useState(() => JSON.parse(props.args.spec));
+    //Inicializar
     useEffect(() => {
-      // Set the component height and notify Streamlit we're ready
       Streamlit.setFrameHeight();
       Streamlit.setComponentReady();
+      localStorage.setItem('xaxis_autorange','true');
     }, []);
     
     const { data, layout, frames, config } = JSON.parse(props.args.spec);
-
     const [plotLayout, setPlotLayout] = useState(layout);
 
-    // const [testLayout,updateTestLayout] = useState(layout)
-
     let change_flag = props.args.change_flag['dates'];
+    const tema = props.args.theme;
+    
     console.log('=========Recebida flag de mudança', change_flag);
     if (typeof change_flag[0] === 'string'){
       change_flag[0] = new Date(`${change_flag[0]}T00:00:00`);
@@ -86,15 +84,12 @@ function MyComponent(props: ComponentProps) {
     }
 
     // Caso datas mudaram
-    
-
     storedData = localStorage.getItem('xaxis_range');
     const saved_Range = storedData ? JSON.parse(storedData) : null;
     const saved_autoRange = localStorage.getItem('xaxis_autorange') === 'true';
     const saved_update_last = localStorage.getItem('update_last') === 'true';
     const saved_dragmode = localStorage.getItem('dragmode');
 
-    
     console.log('Carregado savedRange', saved_Range);
     console.log('Carregado update_last', saved_update_last);
     console.log('Carregado autoRange', saved_autoRange);
@@ -118,7 +113,7 @@ function MyComponent(props: ComponentProps) {
       console.log('>>>>',plotLayout['xaxis'])
   
   // Se está na data de hpje e variável saved_update_last está True
-    } else if (!saved_autoRange && saved_update_last && (saved_lastDates[0] <= new Date() && new Date() <= saved_lastDates[1])){
+  } else if (!saved_autoRange && saved_update_last && (saved_lastDates[0] <= new Date() && new Date() <= saved_lastDates[1])){
       console.log('Opcao 2');
       if (saved_Range[0] >= data[0]['x'][data[0]['x'].length - 1]){ // Caso passe do limite
         saved_Range[0] = data[0]['x'][data[0]['x'].length - 1]
@@ -126,13 +121,15 @@ function MyComponent(props: ComponentProps) {
       plotLayout.xaxis = { ...plotLayout.xaxis,'range':[saved_Range[0],data[0]['x'][data[0]['x'].length - 1]],'rangeslider':{'visible':true}}
   
   // Atualizar com último range
-    } else {
+  } else {
       console.log('Opcao 3');
       console.log(plotLayout, saved_lastDates[0].getTime() !== change_flag[0].getTime(), saved_lastDates[1].getTime() !== change_flag[1].getTime(),saved_lastDates,change_flag);
       console.log('>>>>',plotLayout['xaxis'])
       if(!saved_autoRange){
+        console.log('3.1',saved_Range)
         plotLayout.xaxis = { ...plotLayout.xaxis,'range':saved_Range,'rangeslider':{'visible':true}};
       } else {
+        console.log('3.2',saved_autoRange)
         plotLayout.xaxis = { ...plotLayout.xaxis,'autorange':saved_autoRange,'rangeslider':{'visible':true}};
       }
       console.log('>>>>',plotLayout['xaxis'])  
@@ -140,23 +137,23 @@ function MyComponent(props: ComponentProps) {
 
 plotLayout['dragmode'] = saved_dragmode
 //////////// handleRelayout
-  const handleRelayout = (eventData: any) => {
+const handleRelayout = (eventData: any) => {
       const data_atual = new Date();
-
       const savedRange = localStorage.getItem('xaxis_range');
-      console.log('LAST DATA',savedRange);
+      console.log('LAST DATA', savedRange);
       // console.log(layout['xaxis']['range']) //['autorange']
       console.log(eventData);
 
       // botão reset e autoscale
       if (eventData['xaxis.showspikes'] || eventData['xaxis.autorange']){
-          //console.log('Op1')
+          console.log('Op1')
           //Streamlit.setComponentValue('reset')
           layout['xaxis'] = {...layout.xaxis,'autorange':true,'rangeslider':{'visible':true}};
           localStorage.setItem('xaxis_autorange','true');
           localStorage.setItem('update_last','false');
+          setPlotLayout(layout);
       } else if (eventData['xaxis.range[0]'] && eventData['xaxis.range[1]']) {
-          //console.log('Op2')
+          console.log('Op2')
           //Streamlit.setComponentValue([eventData['xaxis.range[0]'], eventData['xaxis.range[1]']])
           const last_x = [eventData['xaxis.range[0]'], eventData['xaxis.range[1]']];
           
@@ -187,7 +184,7 @@ plotLayout['dragmode'] = saved_dragmode
           setPlotLayout(layout);
       } else if (eventData['xaxis.range'] && eventData['xaxis.range'][0] && eventData['xaxis.range'][1]){
           //Streamlit.setComponentValue([eventData['xaxis.range'][0], eventData['xaxis.range'][1]])
-          
+          console.log('Op3')
           // Possível bug no tempo real
           const last_x = [eventData['xaxis.range'][0], eventData['xaxis.range'][1]];
           
@@ -229,11 +226,42 @@ plotLayout['dragmode'] = saved_dragmode
       }
     };
 
-
+    console.log('RABGE ATUAL:',plotLayout['xaxis']['range'])
     // const handleUpdate = (eventData: any) => { console.log('Test Updates',eventData)};
     // console.log('RECEBIDO Dados',props.args.spec)
 
     //console.log(' DADO DE LAYOUT PARA CARREGAR GRÁFICO', layout['xaxis'])
+
+    //config['modeBarButtonsToRemove'] = ['resetScale2d']
+    //console.log('Config atual',config)
+    
+    //SISTEMA PARA TRATAR X0 maior que X1
+    if ('xaxis' in plotLayout && 'range' in plotLayout['xaxis'] && new Date(plotLayout['xaxis']['range'][0]) > new Date(plotLayout['xaxis']['range'][1])){
+      const aux = plotLayout['xaxis']['range'][0];
+      console.log('INVERTER',plotLayout['xaxis']['range'])
+      plotLayout['xaxis']['range'][0] = plotLayout['xaxis']['range'][1];
+      plotLayout['xaxis']['range'][1] = aux;
+    }
+
+    //SISTEMA PARA ATUALIZAR BACKGROUND (já ajusto no python)
+    plotLayout['plot_bgcolor'] = 'rgba(240, 240, 240, 0)'
+    
+    console.log(tema)
+    if (tema === 'light'){
+      plotLayout['paper_bgcolor'] = 'rgba(255, 255, 255, 0.9)';
+      plotLayout['template'] = 'plotly';
+      plotLayout['font']['color'] = 'black';
+      //plotLayout['modebar'] = { color: 'darkgray', activecolor: 'white' ,bgcolor: 'rgba(0 0, 0, 0.7)'};
+    } else if (tema === 'dark'){
+      plotLayout['paper_bgcolor'] = 'rgba(0, 0, 0, 0.9)';
+      plotLayout['template'] = 'plotly_dark';
+      plotLayout['font']['color'] = 'white';
+      //plotLayout['modebar'] = { color: 'lightgray', activecolor: 'white',bgcolor: 'rgba(0, 0, 0, 0.7)' };
+    }
+    plotLayout['modebar'] = { color: 'darkgray', activecolor: 'white' ,bgcolor: 'rgba(0 0, 0, 0.7)'};
+    console.log('tema',tema)
+    console.log(plotLayout)
+
     return (
       <Plot
         data={data}
@@ -242,7 +270,20 @@ plotLayout['dragmode'] = saved_dragmode
         style={{ width: "100%", height: "100%" }}//useResizeHandler={true}
         frames={frames}
         // onUpdate={handleUpdate}
-        config={config}
+        useResizeHandler={true}
+        config={{
+          'showLink': false,
+          'displaylogo': false,
+          'modeBarButtonsToRemove': ['resetScale2d','lasso2d','select2d'],
+          'toImageButtonOptions': {
+            // Pode ser configurado aqui também
+            'filename': 'grafico_leituras',
+            'format': 'png', // one of png, svg, jpeg, webp
+            // 'height': 500,
+            // 'width': 700,
+            'scale': 2 // Multiply title/legend/axis/canvas sizes by this factor
+          }
+        }}// config
       />
     )
 }
