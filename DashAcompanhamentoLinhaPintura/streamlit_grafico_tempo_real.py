@@ -23,26 +23,55 @@ from streamlit_theme import st_theme
 load_dotenv(find_dotenv())
 #from streamlit_plotly_mapbox_events import plotly_mapbox_events
 st.set_page_config(layout='wide')
+espaco_vazio = st.empty()
+# with st.container(key="unique-markdown"):
+with espaco_vazio:
+    theme_info = st_theme(adjust=False)
+    # ESCONDER HEADER/BARRA E Remover espaço vazio de cima
+    st.html('''<style>
+                header {visibility: hidden;}
+                .block-container {
+                    padding-top: 1rem;
+                    padding-bottom: 0rem;
+                    padding-left: 5rem;
+                    padding-right: 5rem;
+                }
+                </style>''')
+    #  div[data-testid="stMarkdown"].unique-markdown {display: none;}
 
-theme_info = st_theme(adjust=False)
-
+TOLERANCIA_ATIVO = float(os.getenv('TOLERANCIA_ATIVO'))
 
 print(f'CARREGADO {theme_info} {type(theme_info)}')
+if theme_info:
+    theme_font = theme_info['font']
+else:
+    theme_font = 'Segoe UI'
+
+
 if theme_info and theme_info.get('backgroundColor') == '#0e1117':
     theme = 'dark'
 else:
     theme = 'light'
-TOLERANCIA_ATIVO = float(os.getenv('TOLERANCIA_ATIVO'))
+
 #st.markdown(f'TOLERÂNCIA {TOLERANCIA_ATIVO}')
 
 _component_func = components.declare_component(
     "my_component",
     url="http://localhost:3001",
 )
+_component_func2 = components.declare_component(
+    "my_component",
+    url="http://localhost:3002",
+)
 
-def reactGraph(fig,theme,change_flag,key='Gráfico'):
+def reactGraph(fig, change_flag, key='Gráfico'):
     print(f'ENVIANDO FLAG MUDANÇA {change_flag}')
-    return _component_func(spec=fig.to_json(),change_flag=change_flag,theme=theme, default="",key=key) # Default para evitar None enquanto carrega
+    return _component_func(spec=fig.to_json(),change_flag=change_flag,default="",key=key) # Default para evitar None enquanto carrega
+
+def reactGraph2(fig, change_flag, key='Gráfico'):
+    print(f'ENVIANDO FLAG MUDANÇA {change_flag}')
+    return _component_func2(spec=fig.to_json(),change_flag=change_flag,default="",key=key) # Default para evitar None enquanto carrega
+
 
 #placeholder_graph = st.empty() # se for utilizar while invés de st_autorefresh
 
@@ -723,7 +752,7 @@ def process_part(display_data, show_date_start, show_date_end, last_data_old, la
     df_lightblue_bar = calcula_barras_intervalos(intervalos_inativo_extra,True)
     df_green_bar = calcula_barras_intervalos(intervalos_ativos,True)
 
-    return display_data, intervalos_inativo,intervalos_desativado,intervalos_ativos, intervalo_ativado_extra, intervalos_inativo_extra, df_yellow_bar, df_red_bar, df_purple_bar, df_lightblue_bar, df_green_bar
+    return display_data, intervalos_inativo, intervalos_desativado, intervalos_ativos, intervalo_ativado_extra, intervalos_inativo_extra, df_yellow_bar, df_red_bar, df_purple_bar, df_lightblue_bar, df_green_bar
 
 def create_graph(display_data,show_date_start,show_date_end):
     print(f'TEMPO INICIO GRAFICO 1 {time() - START}')
@@ -1597,7 +1626,7 @@ def display_no_data(key='periodo_tempo'):
     ''')
     st.date_input('Filtro Leitura',key='periodo_tempo')
 
-TEST_MODE = False #True
+TEST_MODE = True #True
 
 #st.json(dados_intervalos)
 if periodo_inicio:
@@ -1763,14 +1792,11 @@ if periodo_inicio:
         elif TEST_MODE or periodo_inicio <= datetime.now().date() <= periodo_fim - timedelta(days=1) and st.session_state.get('last_processed_read_time') != st.session_state.get('last_read_time'):#not st.session_state.get('last_process',pd.DataFrame()).equals(display_data):
             # Cálcular intervalos não processados e mesclar com antigos
             print('OP2')
-        ##################### CONTINUAR UTILIZAR DE BASE:
             #st.markdown(f'TEMPO ANTES CARREGAR: {time() - START}')
             
             last_read_time = st.session_state.get('last_processed_read_time')
 
             # print(f'LAST READ ANTERIOR: {last_read_time} {type(last_read_time)}')
-
-        ####### COMO PEGAR OS DADOS MAIS RECENTES? PARA PROCESSAR sql(possível lag) ou session state (leve atraso por ser adquirido no processamento anterior)?
             # CONSULTAR sql OU JÁ CONSULTAR NO ANTERIOR ?
             #st.markdown(f'Tempo antes consulta recentes {time() - START}')
             query = f"""
@@ -1787,7 +1813,7 @@ if periodo_inicio:
             last_read = st.session_state.get('last_read') # PEGA DADOS DO ÚLTIMO PROCESSAMENTO
             if not newest_read.empty:
                 last_read = pd.concat([last_read, newest_read], ignore_index=True)
-                test_acumulator = [newest_read['LinhaPinturaUtilizacaoDtHr'].to_list(),newest_read['LinhaPinturaUtilizacaoPerOcup'].to_list()]
+                test_acumulator = [newest_read['LinhaPinturaUtilizacaoDtHr'].to_list(), newest_read['LinhaPinturaUtilizacaoPerOcup'].to_list()]
             elif TEST_MODE:
                 test_acumulator = st.session_state.get('test_acumulator')
             else:
@@ -1813,8 +1839,11 @@ if periodo_inicio:
                 ### 2 CÁLCULAR TODOS OS INTERVALOS e adicionar a gráfico como barras (NO LUGAR DE TESTES)
                 #       Começando sem "- 0.5" para se unir a barras anteriores
                 last_data = list(fig.data[0].x)[-1]
+                print(f'LAST DATE',last_data)
                 if pd.to_datetime(last_data).date() != datetime.today().date():
                     last_data = dados_intervalos[DIA_SEM_ATUAL]['TurnoProdutivoHrEntrada']
+                    
+                    print('COMPARANDO {} ({}) < {} ({})'.format(test_acumulator[0],type(test_acumulator[0]),dados_intervalos[DIA_SEM_ATUAL]['TurnoProdutivoHrEntrada'],type(dados_intervalos[DIA_SEM_ATUAL]['TurnoProdutivoHrEntrada'])))
                     if test_acumulator[0] < dados_intervalos[DIA_SEM_ATUAL]['TurnoProdutivoHrEntrada']:
                         last_data = test_acumulator[0] - timedelta(seconds=0.1)
 
@@ -1823,7 +1852,84 @@ if periodo_inicio:
                 display_data, intervalos_inativo, intervalos_desativado, intervalos_ativos, intervalo_ativado_extra, intervalos_inativo_extra, df_yellow_bar, df_red_bar, df_purple_bar, df_lightblue_bar, df_green_bar = process_part(test_acumulator, periodo_inicio, periodo_fim, last_data, datetime.now())
                 percentPerHoraTrab = calcular_media_porcentagem_por_tempo_trabalhando(display_data)
                 
-                # print(f'Recebido dados linha: {display_data}')
+
+                print(f'COMPARANDO INTERVALOS \n\t{intervalos_inativo} / \n\t{intervalos_desativado} / \n\t{intervalos_ativos}')
+
+                menor_valor_new = datetime.max
+                lista_origem_new = None
+                index_valor_new = None
+                for lista in [[intervalos_inativo,1], [intervalos_desativado,2], [intervalos_ativos,5]]:# + intervalo_ativado_extra + intervalos_inativo_extra:
+                    index_lista = lista[1]
+                    for index, sublista in enumerate(lista[0]):
+                        if sublista[0] < menor_valor_new:
+                            menor_valor_new = sublista[0]
+                            lista_origem_new = index_lista
+                            index_valor_new = index
+                
+                maior_valor_old = np.datetime64(datetime.min)
+                lista_origem_old = -1
+                #index_valor_new = -1
+                print(maior_valor_old, type(maior_valor_old), ' \ ', fig.data[1].x[-1], type(fig.data[1].x[-1]))
+                if maior_valor_old < fig.data[1].x[-1]:
+                    maior_valor_old = fig.data[1].x[-1]
+                    lista_origem_old = 1
+                if maior_valor_old < fig.data[2].x[-1]:
+                    maior_valor_old = fig.data[2].x[-1]
+                    lista_origem_old = 2
+                if maior_valor_old < fig.data[5].x[-1]:
+                    maior_valor_old = fig.data[5].x[-1]
+                    lista_origem_old = 5
+
+
+                print(f'MENOR VALOR OLD {menor_valor_new} / {lista_origem_new}\nMENOR VALOR NEW {maior_valor_old} / {lista_origem_old} ({index_valor_new})')
+                
+                print(f'\n\nDADOS BARRAS ANTES>\nyel {df_yellow_bar}\n,red {df_red_bar}\n,gre {df_green_bar}\n')
+                ################ MESCLAR PRIMEIRA BARRA COM BARRA ANTERIOR, ver qual temaior e menor x ?
+                if lista_origem_old == lista_origem_new:# checar se estão em datas diferentes
+                    modfy_df_bar = []
+                    if lista_origem_old == 1:
+                        print('Modificar yellow')
+                        modfy_df_bar = df_yellow_bar
+                    elif lista_origem_old == 2:
+                        print('Modificar red')
+                        modfy_df_bar = df_red_bar
+                    elif lista_origem_old == 5:
+                        print('Modificar green')
+                        modfy_df_bar = df_green_bar
+            
+
+                    print('COMPARANDO DATAS: {} ({}) == {} ({})'.format(modfy_df_bar['from'].to_numpy()[0],type(modfy_df_bar['from'].to_numpy()[0]),fig.data[lista_origem_old].x[-1],type(fig.data[lista_origem_old].x[-1])))
+                    if modfy_df_bar['from'].to_numpy()[0] == fig.data[lista_origem_old].x[-1]:
+                        # REMOVER e Modificar último
+                        # xold - widthold/2
+                        # tonew - fromnew/2
+                        #   novo width  > tonew + widthold
+                        #   novo x      > xold + tonew/2 ///// (xold - widthold/2 + tonew + fromnew/2)/2
+                        print('width> {} == {}'.format(list(modfy_df_bar['to']), fig.data[lista_origem_old].width[-1]))
+                        print('x> {} == {}'.format(list(modfy_df_bar['to']), fig.data[lista_origem_old].x[-1]))
+                        print('TENTANDO REALIZAR CONTA: {} ({}) + {} ({})'.format(modfy_df_bar['to'][index_valor_new],type(modfy_df_bar['to'][index_valor_new]),fig.data[lista_origem_old].width[-1],type(fig.data[lista_origem_old].width[-1])))
+                        
+                        print(f'WIDTH ANTES {fig.data[lista_origem_old].width} ({type(fig.data[lista_origem_old].width)}) [{type(fig.data[lista_origem_old].width[0])}]')
+                        width_atual = list(fig.data[lista_origem_old].width)
+                        width_atual[-1] = modfy_df_bar['to'][index_valor_new] + fig.data[lista_origem_old].width[-1]
+                        fig.data[lista_origem_old].width = width_atual
+                        
+                        
+                        print('TENTANDO REALIZAR CONTA: {} ({}) + {} ({})'.format(fig.data[lista_origem_old].x[-1], type(fig.data[lista_origem_old].x[-1]),timedelta(microseconds=modfy_df_bar['to'][index_valor_new] / 2),type(timedelta(microseconds=modfy_df_bar['to'][index_valor_new] / 2))))                    
+                        # print(f'X ANTES {fig.data[lista_origem_old].x} {type(fig.data[lista_origem_old].x[0])}')
+                        
+                        x_atual = list(fig.data[lista_origem_old].x)
+                        # print(f'X CONVERTIDO LIST {x_atual}')
+                        x_atual[-1] = fig.data[lista_origem_old].x[-1] + np.timedelta64(int(modfy_df_bar['to'][index_valor_new] / 2), 'us')
+                        # print(f'X ADICCIONADO LIST {x_atual}')
+                        fig.data[lista_origem_old].x = np.array(x_atual)
+                        # print(f'X DEPOIS {fig.data[lista_origem_old].x} {type(fig.data[lista_origem_old].x)}')
+                        
+                        # REMOVER LINHA DA BARRA MESCLADA
+                        print(f'TENTANDO REMOVER ({index_valor_new}) de {modfy_df_bar}')
+                        modfy_df_bar = modfy_df_bar.drop(index_valor_new)
+                        print(f'>>>RESULTADO {modfy_df_bar}')
+                print(f'\nDADOS BARRAS DEPOIS>\nyel {df_yellow_bar}\nred, {df_red_bar}\ngre, {df_green_bar}\n\n')
 
                 # amarelo
                 if not df_yellow_bar.empty:
@@ -1837,6 +1943,7 @@ if periodo_inicio:
                 if not df_red_bar.empty:
                     print(f'BARRA RED {df_red_bar}\n\t INTERVALO {intervalos_desativado}')
                     fig.data[2].width = np.concatenate([fig.data[2].width, df_red_bar['to'].to_numpy()])
+                    print('CONCATENAR {} ({}) com {} ({})'.format(fig.data[2].x,type(fig.data[2].x[0]),df_red_bar['from'],type(df_red_bar['from'][0])))
                     fig.data[2].x = np.concatenate([fig.data[2].x, df_red_bar['from'].to_numpy()])
                     fig.data[2].y = np.concatenate([fig.data[2].y, df_red_bar['size'].to_numpy()])
                     fig.data[2].offset = np.concatenate([fig.data[2].offset, df_red_bar['offset'].to_numpy()])
@@ -1950,6 +2057,7 @@ if periodo_inicio:
         with st.container(border=True):
             st.markdown('**Tempo Excedente**') # minutos_extras
             st.markdown(f"<h1 style='text-align: center;'>{math.floor(minutos_extras / 60)}:{minutos_extras % 60:02}</h1>",unsafe_allow_html=True)
+           
             # Talvez utilizar:
             #  :blue[texto]  :red-background[texto exemplo].
             # Container não se adapta:
@@ -2000,8 +2108,8 @@ if periodo_inicio:
             #     paper_bgcolor="rgba(0,0,0,100)" if theme == "dark" else "rgba(255,255,255,100)",
             #     font=dict(color="white" if theme == "dark" else "black"),
             # )
-            print(f'ATUALIZANDO {theme}')
-            v = reactGraph(fig, theme, change_flag={'dates': [periodo_inicio.isoformat(), (periodo_fim-timedelta(days=1)).isoformat()]}, key='graf1')
+            #print(f'ATUALIZANDO {theme}')
+            v = reactGraph(fig, change_flag={'dates': [periodo_inicio.isoformat(), (periodo_fim-timedelta(days=1)).isoformat()]}, key='graf1')
             #st.plotly_chart(fig,key='gráfico')
             # st.markdown(f'RECEBIDO> {v}')
             # if v and v != 'reset':
@@ -2079,7 +2187,8 @@ if periodo_inicio:
             )
 
         ############## IMPLEMENTAR GRÁFICO PARA BARRAS: Remover rangeslider, como aumentar tamanho do
-            #reactGraph(fig_bar,theme,change_flag={'dates': [periodo_inicio.isoformat(), (periodo_fim-timedelta(days=1)).isoformat()]},key='graf_bar')
+            reactGraph2(fig_bar, change_flag = {'dates': [periodo_inicio.isoformat(), (periodo_fim-timedelta(days=1)).isoformat()]}, key='graf_bar')
+
             st.plotly_chart(fig_bar,key='gráfico_bar')
 
         #st.markdown(f'Tempo Carregar gráfico Barras: {time() - START}')

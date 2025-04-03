@@ -61,14 +61,15 @@ function MyComponent(props: ComponentProps) {
     const [plotLayout, setPlotLayout] = useState(layout);
 
     let change_flag = props.args.change_flag['dates'];
-    const theme = props.theme?.base || 'light';//props.args.theme;
+    const theme = props.theme
+    const theme_base = theme?.base || 'light';//props.args.theme;
 
     const saved_showLegend = JSON.parse(localStorage.getItem('showLegend') || '[]');
     if (saved_showLegend.length === 0){
       const n = data.length
       const novo_array = new Array(n).fill(null)
       data.map((traceData: any, index: number) => {
-        console.log('ANALISANDO', traceData)
+        // console.log('ANALISANDO', traceData)
         if ('visible' in traceData){
           if(traceData['visible'] === 'legendonly'){
             novo_array[index] = 'legendonly';
@@ -82,7 +83,7 @@ function MyComponent(props: ComponentProps) {
         }
         return novo_array[index];
         })
-        console.log('ARRAY RESULTANTE',novo_array);
+        // console.log('ARRAY RESULTANTE',novo_array);
         localStorage.setItem('showLegend',JSON.stringify(novo_array));
     }else{
        console.log('Array já existe',saved_showLegend);
@@ -93,7 +94,7 @@ function MyComponent(props: ComponentProps) {
     if (typeof change_flag[0] === 'string'){
       change_flag[0] = new Date(`${change_flag[0]}T00:00:00`);
       change_flag[1] = new Date(`${change_flag[1]}T23:59:59`);
-      console.log('Convertida flag de mudança', change_flag);
+      // console.log('Convertida flag de mudança', change_flag);
     } else {
       console.log('Não convertida', typeof change_flag[0]);
     }
@@ -101,11 +102,11 @@ function MyComponent(props: ComponentProps) {
     let storedData = localStorage.getItem('last_dates');
     let saved_lastDates = storedData ? JSON.parse(storedData) : null;
     
-    console.log('Carregado lastDates', saved_lastDates)
+    // console.log('Carregado lastDates', saved_lastDates)
     if (saved_lastDates != null && saved_lastDates[0] != null){
       saved_lastDates[0] = new Date(saved_lastDates[0]);
       saved_lastDates[1] = new Date(saved_lastDates[1]);
-      console.log('Convertida last dates', saved_lastDates);
+      // console.log('Convertida last dates', saved_lastDates);
     } else {
       console.log('Não convertida last dates', saved_lastDates);
       saved_lastDates = [-1,-1];
@@ -118,15 +119,16 @@ function MyComponent(props: ComponentProps) {
     const saved_update_last = localStorage.getItem('update_last') === 'true';
     const saved_dragmode = localStorage.getItem('dragmode');
 
-    console.log('Carregado savedRange', saved_Range);
-    console.log('Carregado update_last', saved_update_last);
-    console.log('Carregado autoRange', saved_autoRange);
+    // console.log('Carregado savedRange', saved_Range);
+    // console.log('Carregado update_last', saved_update_last);
+    // console.log('Carregado autoRange', saved_autoRange);
 
   // ATUALIZAR LAYOUT Tratar caso a caso direto
     // Novos dados recebidos
     
+  console.log('VALOR DANDO ERRO NO GRÁFICO DE BARRAS',saved_lastDates)
   // Caso datas mudaram  Remover 
-  if (saved_lastDates[0].getTime() !== change_flag[0].getTime() || saved_lastDates[1].getTime() !== change_flag[1].getTime()){// && (saved_lastDates[0] > new Date() || new Date() > saved_lastDates[1])){
+  if (saved_lastDates[0] != -1 && (saved_lastDates[0].getTime() !== change_flag[0].getTime() || saved_lastDates[1].getTime() !== change_flag[1].getTime())){// && (saved_lastDates[0] > new Date() || new Date() > saved_lastDates[1])){
     //Por que está entrando se são iguais ?
     
     console.log('Opcao 1', saved_autoRange, saved_lastDates[0].getTime() !== change_flag[0].getTime(), saved_lastDates[1].getTime() !== change_flag[1].getTime(),saved_lastDates,change_flag);
@@ -149,7 +151,7 @@ function MyComponent(props: ComponentProps) {
       plotLayout.xaxis = { ...plotLayout.xaxis,'range':[saved_Range[0],data[0]['x'][data[0]['x'].length - 1]],'rangeslider':{'visible':true}}
   
   // Atualizar com último range
-  } else {
+  } else if (saved_lastDates[0] != -1) {
       console.log('Opcao 3');
       console.log(plotLayout, saved_lastDates[0].getTime() !== change_flag[0].getTime(), saved_lastDates[1].getTime() !== change_flag[1].getTime(),saved_lastDates,change_flag);
       console.log('>>>>',plotLayout['xaxis'])
@@ -252,7 +254,7 @@ const handleLegendClick = (eventData: any) => {
           const last_date = new Date(data[0]['x'][data[0]['x'].length - 1]);
           if ( saved_lastDates[0] <= data_atual && data_atual <= saved_lastDates[1]){
             console.log('HOJE CONTIDO NO INTERVALO',new Date(last_x[1]),last_date);
-            if (new Date(last_x[1]) > last_date){
+            if (new Date(last_x[1]) >= last_date){
               console.log('ACOMPANHAR X');
               localStorage.setItem('update_last','true');
               last_x[1] = data[0]['x'][data[0]['x'].length - 1];
@@ -339,33 +341,51 @@ const handleLegendClick = (eventData: any) => {
     
 
     const saved_showLegend_load = JSON.parse(localStorage.getItem('showLegend') || '[]');
-    saved_showLegend_load.forEach((legendVisible:any, index:number) => {
-      if (legendVisible === true){
-        data[index]['visible'] = legendVisible 
-      }else if (legendVisible === 'legendonly'){
-        data[index]['visible'] = legendVisible
-      }
-    })
-
-
-    console.log(theme)
-    if (theme === 'light'){
-      plotLayout['paper_bgcolor'] = 'rgba(255, 255, 255, 0.9)';
-      plotLayout['template'] = 'plotly';
-      plotLayout['font']['color'] = 'black';
-      //plotLayout['modebar'] = { color: 'darkgray', activecolor: 'white' ,bgcolor: 'rgba(0 0, 0, 0.7)'};
-    } else if (theme === 'dark'){
-      plotLayout['paper_bgcolor'] = 'rgba(0, 0, 0, 0.9)';
-      plotLayout['template'] = 'plotly_dark';
-      plotLayout['font']['color'] = 'white';
-      //plotLayout['modebar'] = { color: 'lightgray', activecolor: 'white',bgcolor: 'rgba(0, 0, 0, 0.7)' };
+    if (data.length > 1){
+      saved_showLegend_load.forEach((legendVisible:any, index:number) => {
+          if (legendVisible === true || legendVisible === 'legendonly'){
+            if ('visible' in data[index]){
+              data[index]['visible'] = legendVisible
+            } else {
+              data[index] = {...data[index], 'visible':legendVisible}
+            }
+          }
+      })
     }
+    
+    console.log('tema',theme)
+    // if (theme_base === 'light'){
+    if (theme){
+      const backgroundColor = theme['backgroundColor'];
+      //theme['bodyFont'];
+      const primaryColor = theme['primaryColor'];
+      const secondaryBackgroundColor = theme['secondaryBackgroundColor'];
+      const textColor = theme['textColor']
+      
+      plotLayout['paper_bgcolor'] = backgroundColor;//'rgba(255, 255, 255, 0.9)';
+      plotLayout['template'] = 'plotly';
+      if ('font' in plotLayout){
+        plotLayout['font']['color'] = textColor//'black';
+      } else {
+        plotLayout['font'] = {'color':textColor}//'black'}
+      }
+    }
+      //plotLayout['modebar'] = { color: 'darkgray', activecolor: 'white' ,bgcolor: 'rgba(0 0, 0, 0.7)'};
+    // } else if (theme_base === 'dark'){
+    //   plotLayout['paper_bgcolor'] = 'rgba(0, 0, 0, 0.9)';
+    //   plotLayout['template'] = 'plotly_dark';
+    //   if ('font' in plotLayout){
+    //     plotLayout['font']['color'] = 'white';
+    //   } else {
+    //     plotLayout['font'] = {'color':'white'}
+    //   }
+    //   //plotLayout['modebar'] = { color: 'lightgray', activecolor: 'white',bgcolor: 'rgba(0, 0, 0, 0.7)' };
+    // } 
+
     plotLayout['modebar'] = { color: 'darkgray', activecolor: 'white' ,bgcolor: 'rgba(0 0, 0, 0.7)'};
     plotLayout['legend'] = {...plotLayout.legend, 'itemdoubleclick':false} 
-    console.log('tema',theme)
-    console.log(plotLayout)
-
-    console.log('data',data)
+    console.log('layout', plotLayout)
+    console.log('data', data)
     console.log('ARRAY DAS LEGENDAS', saved_showLegend_load)
 
     return (
