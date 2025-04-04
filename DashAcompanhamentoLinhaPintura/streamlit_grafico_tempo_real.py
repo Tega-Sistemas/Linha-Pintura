@@ -64,13 +64,13 @@ _component_func2 = components.declare_component(
     url="http://localhost:3002",
 )
 
-def reactGraph(fig, change_flag, key='Gráfico'):
+def reactGraph(fig, change_flag, rangeslider=True, key='Gráfico'):
     print(f'ENVIANDO FLAG MUDANÇA {change_flag}')
-    return _component_func(spec=fig.to_json(),change_flag=change_flag,default="",key=key) # Default para evitar None enquanto carrega
+    return _component_func(spec=fig.to_json(), change_flag=change_flag, rangeslider=rangeslider, default="", key=key) # Default para evitar None enquanto carrega
 
-def reactGraph2(fig, change_flag, key='Gráfico'):
+def reactGraph2(fig, change_flag, rangeslider=True, key='Gráfico'):
     print(f'ENVIANDO FLAG MUDANÇA {change_flag}')
-    return _component_func2(spec=fig.to_json(),change_flag=change_flag,default="",key=key) # Default para evitar None enquanto carrega
+    return _component_func2(spec=fig.to_json(), change_flag=change_flag, rangeslider=rangeslider, default="", key=key) # Default para evitar None enquanto carrega
 
 
 #placeholder_graph = st.empty() # se for utilizar while invés de st_autorefresh
@@ -570,7 +570,7 @@ def calcula_barras_intervalos(intervalos, new = False):
     interval_bars_x2 = []
     interval_bars_offset = []
     for i_inax1,i_inax2 in intervalos:
-        print(f'\t>>PROCESSANDO INTERVALO: {i_inax1}, {i_inax2}')
+        # print(f'\t>>PROCESSANDO INTERVALO: {i_inax1}, {i_inax2}')
         interval_bars_x.append(i_inax1)
         interval_bars_y.append(100)
         #print(i_inax2,i_inax1,type(i_inax2),type(i_inax1))
@@ -1370,7 +1370,7 @@ def create_bar_graph(display_data,show_date_start,show_date_end):
         offset=-1000000,
         width=bar_width*3,
         customdata=[abs(y) for y in -result['media_perOcup_ativo']],
-        hovertemplate='%{customdata:.0f} % (%{x})   <extra></extra>',  # Exibe o valor sem o sinal negativo
+        hovertemplate='%{customdata:.2f} % (%{x})   <extra></extra>',  # Exibe o valor sem o sinal negativo
         opacity=0.3#,
     ))#,row=2,col=1)
 
@@ -1385,7 +1385,7 @@ def create_bar_graph(display_data,show_date_start,show_date_end):
         #offset=0,
         offset=-1000000,
         opacity=0.3,#,
-        hovertemplate='%{y:.0f} % (%{x})   <extra></extra>',
+        hovertemplate='%{y:.2f} % (%{x})   <extra></extra>',
         width=width_inativo
     ))#,row=1,col=1)
 
@@ -1395,7 +1395,7 @@ def create_bar_graph(display_data,show_date_start,show_date_end):
         y=result['percent_tempo_ativo_menor_2_seg'],
         name='Tempo Ativo <2% (% de hora)',
         marker_color='yellow',
-        hovertemplate='%{y:.0f} % (%{x})   <extra></extra>',
+        hovertemplate='%{y:.2f} % (%{x})   <extra></extra>',
         offset=-0,
         opacity=0.3,
         width=bar_width
@@ -1407,7 +1407,7 @@ def create_bar_graph(display_data,show_date_start,show_date_end):
         y=result['percent_tempo_ativo_maior_2_seg'],
         name='Tempo Ativo >2% (% de hora)',
         marker_color='green',
-        hovertemplate='%{y:.0f} % (%{x})   <extra></extra>',
+        hovertemplate='%{y:.2f} % (%{x})   <extra></extra>',
         offset=1000000,
         opacity=0.3,
         width=bar_width
@@ -1765,7 +1765,7 @@ if periodo_inicio:
         # Não, Periódo mudou> Recalcular tudo
         if st.session_state.get('last_dates',[]) != [periodo_inicio, periodo_fim] or 'fig1' not in st.session_state or 'figbar' not in st.session_state: #(not same_data or 'fig1' not in st.session_state or 'figbar' not in st.session_state):
             print('OP1')
-            # print(f'TEMPO ANTES THREAD 1 {time() - START}')
+            print(f'TEMPO ANTES THREAD 1 {time() - START}')
             thread_bar = Thread(target=create_bar_graph_wrapper, args=(copia_dp_data,periodo_inicio,periodo_fim, q_bar))
             
             # print(f'TEMPO ANTES THREAD 2 {time() - START}')
@@ -1777,7 +1777,7 @@ if periodo_inicio:
             # Esperar que ambas terminem
             thread_graph.join()
             thread_bar.join()
-            # print((f'TEMPO LEVADO THREADS {time() - START}'))
+            print((f'TEMPO LEVADO THREADS {time() - START}'))
 
             fig, percentPerHoraTrab, display_data = q_graph.get()
             fig_bar, min_total, min_trab, percent_trab_geral, min_parado, minutos_ligados, minutos_extras = q_bar.get()
@@ -1816,9 +1816,20 @@ if periodo_inicio:
                 test_acumulator = [newest_read['LinhaPinturaUtilizacaoDtHr'].to_list(), newest_read['LinhaPinturaUtilizacaoPerOcup'].to_list()]
             elif TEST_MODE:
                 test_acumulator = st.session_state.get('test_acumulator')
+                last_read = pd.concat([last_read, pd.DataFrame({'LinhaPinturaUtilizacaoDtHr':test_acumulator[0],'LinhaPinturaUtilizacaoPerOcup':test_acumulator[1]})], ignore_index=True)
             else:
                 test_acumulator = []
+
             
+            print(f'TEMPO ANTES GRAF BARRAS {time() - START}')
+            display_data = {'date': last_read['LinhaPinturaUtilizacaoDtHr'].to_list(), 'perOcup': last_read['LinhaPinturaUtilizacaoPerOcup'].to_list()}
+            thread_bar = Thread(target=create_bar_graph_wrapper, args=(display_data,periodo_inicio,periodo_fim, q_bar))
+            thread_bar.start()
+            thread_bar.join()
+            fig_bar, min_total, min_trab, percent_trab_geral, min_parado, minutos_ligados, minutos_extras = q_bar.get()
+            st.session_state['figbar'] = (fig_bar, min_total, min_trab, percent_trab_geral, min_parado, minutos_ligados, minutos_extras)
+
+
             print(f'Test_acumulator: {test_acumulator}')
             if test_acumulator:
                 st.session_state['last_read'] = last_read # SALVA DADOS CONCATENADOS
@@ -1831,9 +1842,9 @@ if periodo_inicio:
                 fig_bar, min_total, min_trab, percent_trab_geral, min_parado, minutos_ligados, minutos_extras = st.session_state.get('figbar')
 
                 for i in range(len(test_acumulator[0])):
-                    if isinstance(test_acumulator[0][i],pd.Timestamp):
+                    if isinstance(test_acumulator[0][i], pd.Timestamp):
                         test_acumulator[0][i] = test_acumulator[0][i].to_pydatetime()
-                    else:
+                    elif isinstance(test_acumulator[0][i], np.datetime64):
                         test_acumulator[0][i] = test_acumulator[0][i].item()
 
                 ### 2 CÁLCULAR TODOS OS INTERVALOS e adicionar a gráfico como barras (NO LUGAR DE TESTES)
@@ -1843,16 +1854,16 @@ if periodo_inicio:
                 if pd.to_datetime(last_data).date() != datetime.today().date():
                     last_data = dados_intervalos[DIA_SEM_ATUAL]['TurnoProdutivoHrEntrada']
                     
-                    print('COMPARANDO {} ({}) < {} ({})'.format(test_acumulator[0],type(test_acumulator[0]),dados_intervalos[DIA_SEM_ATUAL]['TurnoProdutivoHrEntrada'],type(dados_intervalos[DIA_SEM_ATUAL]['TurnoProdutivoHrEntrada'])))
-                    if test_acumulator[0] < dados_intervalos[DIA_SEM_ATUAL]['TurnoProdutivoHrEntrada']:
-                        last_data = test_acumulator[0] - timedelta(seconds=0.1)
+                    print(f'\nTEST ACUMULATOR {test_acumulator}')
+                    print('COMPARANDO {} ({}) < {} ({})'.format(test_acumulator[0][0],type(test_acumulator[0][0]),dados_intervalos[DIA_SEM_ATUAL]['TurnoProdutivoHrEntrada'],type(dados_intervalos[DIA_SEM_ATUAL]['TurnoProdutivoHrEntrada'])))
+                    if test_acumulator[0][0] < dados_intervalos[DIA_SEM_ATUAL]['TurnoProdutivoHrEntrada']:
+                        last_data = test_acumulator[0][0] - timedelta(seconds=0.1)
 
                 # print(f'Enviando last_data {last_data}')
 
                 display_data, intervalos_inativo, intervalos_desativado, intervalos_ativos, intervalo_ativado_extra, intervalos_inativo_extra, df_yellow_bar, df_red_bar, df_purple_bar, df_lightblue_bar, df_green_bar = process_part(test_acumulator, periodo_inicio, periodo_fim, last_data, datetime.now())
                 percentPerHoraTrab = calcular_media_porcentagem_por_tempo_trabalhando(display_data)
                 
-
                 print(f'COMPARANDO INTERVALOS \n\t{intervalos_inativo} / \n\t{intervalos_desativado} / \n\t{intervalos_ativos}')
 
                 menor_valor_new = datetime.max
@@ -1896,7 +1907,6 @@ if periodo_inicio:
                     elif lista_origem_old == 5:
                         print('Modificar green')
                         modfy_df_bar = df_green_bar
-            
 
                     print('COMPARANDO DATAS: {} ({}) == {} ({})'.format(modfy_df_bar['from'].to_numpy()[0],type(modfy_df_bar['from'].to_numpy()[0]),fig.data[lista_origem_old].x[-1],type(fig.data[lista_origem_old].x[-1])))
                     if modfy_df_bar['from'].to_numpy()[0] == fig.data[lista_origem_old].x[-1]:
@@ -1943,7 +1953,7 @@ if periodo_inicio:
                 if not df_red_bar.empty:
                     print(f'BARRA RED {df_red_bar}\n\t INTERVALO {intervalos_desativado}')
                     fig.data[2].width = np.concatenate([fig.data[2].width, df_red_bar['to'].to_numpy()])
-                    print('CONCATENAR {} ({}) com {} ({})'.format(fig.data[2].x,type(fig.data[2].x[0]),df_red_bar['from'],type(df_red_bar['from'][0])))
+                    #print('CONCATENAR {} ({}) com {} ({})'.format(fig.data[2].x,type(fig.data[2].x[0]),df_red_bar['from'],type(df_red_bar['from'][0])))
                     fig.data[2].x = np.concatenate([fig.data[2].x, df_red_bar['from'].to_numpy()])
                     fig.data[2].y = np.concatenate([fig.data[2].y, df_red_bar['size'].to_numpy()])
                     fig.data[2].offset = np.concatenate([fig.data[2].offset, df_red_bar['offset'].to_numpy()])
@@ -2187,9 +2197,9 @@ if periodo_inicio:
             )
 
         ############## IMPLEMENTAR GRÁFICO PARA BARRAS: Remover rangeslider, como aumentar tamanho do
-            reactGraph2(fig_bar, change_flag = {'dates': [periodo_inicio.isoformat(), (periodo_fim-timedelta(days=1)).isoformat()]}, key='graf_bar')
+            reactGraph2(fig_bar, change_flag = {'dates': [periodo_inicio.isoformat(), (periodo_fim-timedelta(days=1)).isoformat()]}, rangeslider=False, key='graf_bar')
+            #st.plotly_chart(fig_bar,key='gráfico_bar')
 
-            st.plotly_chart(fig_bar,key='gráfico_bar')
 
         #st.markdown(f'Tempo Carregar gráfico Barras: {time() - START}')
         #color: {text_color};

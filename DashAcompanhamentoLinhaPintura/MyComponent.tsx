@@ -63,9 +63,10 @@ function MyComponent(props: ComponentProps) {
     let change_flag = props.args.change_flag['dates'];
     const theme = props.theme
     const theme_base = theme?.base || 'light';//props.args.theme;
+    const show_rangeslider = props.args.rangeslider
 
     const saved_showLegend = JSON.parse(localStorage.getItem('showLegend') || '[]');
-    if (saved_showLegend.length === 0){
+    if (saved_showLegend.length === 0 || data.length !== saved_showLegend.length){
       const n = data.length
       const novo_array = new Array(n).fill(null)
       data.map((traceData: any, index: number) => {
@@ -83,7 +84,7 @@ function MyComponent(props: ComponentProps) {
         }
         return novo_array[index];
         })
-        // console.log('ARRAY RESULTANTE',novo_array);
+        console.log('ARRAY RESULTANTE',novo_array);
         localStorage.setItem('showLegend',JSON.stringify(novo_array));
     }else{
        console.log('Array já existe',saved_showLegend);
@@ -128,7 +129,7 @@ function MyComponent(props: ComponentProps) {
     
   console.log('VALOR DANDO ERRO NO GRÁFICO DE BARRAS',saved_lastDates)
   // Caso datas mudaram  Remover 
-  if (saved_lastDates[0] != -1 && (saved_lastDates[0].getTime() !== change_flag[0].getTime() || saved_lastDates[1].getTime() !== change_flag[1].getTime())){// && (saved_lastDates[0] > new Date() || new Date() > saved_lastDates[1])){
+  if (saved_lastDates[0] !== -1 && (saved_lastDates[0].getTime() !== change_flag[0].getTime() || saved_lastDates[1].getTime() !== change_flag[1].getTime())){// && (saved_lastDates[0] > new Date() || new Date() > saved_lastDates[1])){
     //Por que está entrando se são iguais ?
     
     console.log('Opcao 1', saved_autoRange, saved_lastDates[0].getTime() !== change_flag[0].getTime(), saved_lastDates[1].getTime() !== change_flag[1].getTime(),saved_lastDates,change_flag);
@@ -139,7 +140,7 @@ function MyComponent(props: ComponentProps) {
       // console.log('>>>>',plotLayout['xaxis'])
       localStorage.setItem('last_dates',JSON.stringify(change_flag));
       localStorage.setItem('xaxis_autorange','true');
-      plotLayout.xaxis = { ...plotLayout.xaxis,'autorange':saved_autoRange,'rangeslider':{'visible':true}};
+      plotLayout.xaxis = { ...plotLayout.xaxis,'autorange':saved_autoRange,'rangeslider':{'visible':show_rangeslider}};
       console.log('>>>>',plotLayout['xaxis'])
   
   // Se está na data de hpje e variável saved_update_last está True
@@ -148,19 +149,19 @@ function MyComponent(props: ComponentProps) {
       if (saved_Range[0] >= data[0]['x'][data[0]['x'].length - 1]){ // Caso passe do limite
         saved_Range[0] = data[0]['x'][data[0]['x'].length - 1]
       }
-      plotLayout.xaxis = { ...plotLayout.xaxis,'range':[saved_Range[0],data[0]['x'][data[0]['x'].length - 1]],'rangeslider':{'visible':true}}
+      plotLayout.xaxis = { ...plotLayout.xaxis,'range':[saved_Range[0],data[0]['x'][data[0]['x'].length - 1]],'rangeslider':{'visible':show_rangeslider}}
   
   // Atualizar com último range
-  } else if (saved_lastDates[0] != -1) {
+  } else if (saved_lastDates[0] !== -1) {
       console.log('Opcao 3');
       console.log(plotLayout, saved_lastDates[0].getTime() !== change_flag[0].getTime(), saved_lastDates[1].getTime() !== change_flag[1].getTime(),saved_lastDates,change_flag);
       console.log('>>>>',plotLayout['xaxis'])
       if(!saved_autoRange){
         console.log('3.1',saved_Range)
-        plotLayout.xaxis = { ...plotLayout.xaxis,'range':saved_Range,'rangeslider':{'visible':true}};
+        plotLayout.xaxis = { ...plotLayout.xaxis,'range':saved_Range,'rangeslider':{'visible':show_rangeslider}};
       } else {
         console.log('3.2',saved_autoRange)
-        plotLayout.xaxis = { ...plotLayout.xaxis,'autorange':saved_autoRange,'rangeslider':{'visible':true}};
+        plotLayout.xaxis = { ...plotLayout.xaxis,'autorange':saved_autoRange,'rangeslider':{'visible':show_rangeslider}};
       }
       console.log('>>>>',plotLayout['xaxis'])  
   }
@@ -241,7 +242,7 @@ const handleLegendClick = (eventData: any) => {
       if (eventData['xaxis.showspikes'] || eventData['xaxis.autorange']){
           console.log('Op1')
           //Streamlit.setComponentValue('reset')
-          layout['xaxis'] = {...layout.xaxis,'autorange':true,'rangeslider':{'visible':true}};
+          layout['xaxis'] = {...layout.xaxis,'autorange':true,'rangeslider':{'visible':show_rangeslider}};
           localStorage.setItem('xaxis_autorange','true');
           localStorage.setItem('update_last','false');
           setPlotLayout(layout);
@@ -269,7 +270,7 @@ const handleLegendClick = (eventData: any) => {
           }
 
           localStorage.setItem('xaxis_range', JSON.stringify(last_x));
-          layout['xaxis'] = {...layout.xaxis,'range':last_x,'autorange':false,'rangeslider':{'visible':true}};
+          layout['xaxis'] = {...layout.xaxis,'range':last_x,'autorange':false,'rangeslider':{'visible':show_rangeslider}};
           
           localStorage.setItem('xaxis_autorange','false');
           
@@ -301,7 +302,7 @@ const handleLegendClick = (eventData: any) => {
 
 
           localStorage.setItem('xaxis_range', JSON.stringify(last_x));
-          layout['xaxis'] = {...layout.xaxis,'range':last_x,'autorange':false,'rangeslider':{'visible':true}};
+          layout['xaxis'] = {...layout.xaxis,'range':last_x,'autorange':false,'rangeslider':{'visible':show_rangeslider}};
           
           localStorage.setItem('xaxis_autorange','false');
           // if (!isMouseDown){
@@ -342,6 +343,8 @@ const handleLegendClick = (eventData: any) => {
 
     const saved_showLegend_load = JSON.parse(localStorage.getItem('showLegend') || '[]');
     if (data.length > 1){
+      console.log('DADO ANALISANDO:',data)
+      console.log('SALVOS:',saved_showLegend_load)
       saved_showLegend_load.forEach((legendVisible:any, index:number) => {
           if (legendVisible === true || legendVisible === 'legendonly'){
             if ('visible' in data[index]){
