@@ -1626,7 +1626,7 @@ def display_no_data(key='periodo_tempo'):
     ''')
     st.date_input('Filtro Leitura',key='periodo_tempo')
 
-TEST_MODE = True #True
+TEST_MODE = False #True
 
 #st.json(dados_intervalos)
 if periodo_inicio:
