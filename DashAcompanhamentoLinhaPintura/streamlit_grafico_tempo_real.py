@@ -24,11 +24,13 @@ load_dotenv(find_dotenv())
 #from streamlit_plotly_mapbox_events import plotly_mapbox_events
 st.set_page_config(layout='wide')
 espaco_vazio = st.empty()
+
+
 # with st.container(key="unique-markdown"):
 with espaco_vazio:
     theme_info = st_theme(adjust=False)
     # ESCONDER HEADER/BARRA E Remover espaço vazio de cima
-    st.html('''<style>
+    st.markdown('''<style>
                 header {visibility: hidden;}
                 .block-container {
                     padding-top: 1rem;
@@ -36,10 +38,55 @@ with espaco_vazio:
                     padding-left: 5rem;
                     padding-right: 5rem;
                 }
-                </style>''')
+                    div[aria-label="dialog"]>button[aria-label="Close"] {
+                    display: none;
+                }
+                </style>''',
+                unsafe_allow_html=True)
     #  div[data-testid="stMarkdown"].unique-markdown {display: none;}
 
+
+######### CHECAR SE MUDOU DATA ATUAL PARA ATUALIZAR PERIODO DE TEMPO
+if 'periodo_tempo' in st.session_state and st.session_state.get('processing_today',False) and st.session_state.get('last_dates',()) == st.session_state.get('periodo_tempo',(0)) and st.session_state.get('periodo_tempo',(0))[-1] != datetime.today().date():
+    print('COMPARANDO DATAS PARA RESET AO MUDAR DIA {} com {}'.format(st.session_state.get('periodo_tempo')[-1],datetime.today().date()))
+    st.session_state['periodo_tempo'] = (st.session_state['periodo_tempo'][0], datetime.today().date())
+    # if 'fig1' in st.session_state: del st.session_state['fig1']
+    # if 'figbar' in st.session_state: del st.session_state['figbar']
+    # if 'last_dates' in st.session_state: del st.session_state['last_dates']
+    # if 'last_process' in st.session_state: del st.session_state['last_process']
+    # if 'last_read' in st.session_state: del st.session_state['last_read']
+    # if 'last_read_time' in st.session_state: del st.session_state['last_read_time']
+    # if 'last_processed_read_time' in st.session_state: del st.session_state['last_processed_read_time']
+    # if 'show_licenses' in st.session_state: del st.session_state['show_licenses']
+    # if 'test_acumulator' in st.session_state: del st.session_state['test_acumulator']
+    ##if 'turno_semana_dados' in st.session_state: del st.session_state['turno_semana_dados']
+    
+
+# SISTEMA PARA FECHAR LICENÇAS
+if st.session_state.get('show_licenses',False):
+    fechar1 = st.button('FECHAR',key='bt1_fecharlicenca')
+    with open('licenses/plotly_mit.txt','r',encoding='utf-8') as f:
+        licenca_plotly =f.read()
+    with open('licenses/streamlit_apache2.txt','r',encoding='utf-8') as f:
+        licenca_streamlit =f.read()
+        print(f'LICENÇA STREAMLIT {licenca_plotly}')
+    print(f'LICENÇA STREAMLIT {licenca_plotly}')
+    st.markdown(f'''# LICENÇAS
+                
+### PLOTLY: [LINK](https://github.com/plotly/plotly.py/blob/main/LICENSE.txt)
+''')
+    st.write(licenca_plotly)        
+    st.markdown('### STREAMLIT: [LINK](https://github.com/streamlit/streamlit/blob/develop/LICENSE)')
+    st.write(licenca_streamlit)
+
+
+    if st.button('FECHAR',key='bt2_fecharlicenca') or fechar1:
+        st.session_state['show_licenses'] = False
+        st.rerun()
+    else:
+        st.stop()
 TOLERANCIA_ATIVO = float(os.getenv('TOLERANCIA_ATIVO'))
+
 
 print(f'CARREGADO {theme_info} {type(theme_info)}')
 if theme_info:
@@ -57,11 +104,11 @@ else:
 
 _component_func = components.declare_component(
     "my_component",
-    url="http://localhost:3001",
+    url="http://192.168.100.70:3001",
 )
 _component_func2 = components.declare_component(
     "my_component",
-    url="http://localhost:3002",
+    url="http://192.168.100.70:3002",
 )
 
 def reactGraph(fig, change_flag, rangeslider=True, key='Gráfico'):
@@ -71,7 +118,6 @@ def reactGraph(fig, change_flag, rangeslider=True, key='Gráfico'):
 def reactGraph2(fig, change_flag, rangeslider=True, key='Gráfico'):
     print(f'ENVIANDO FLAG MUDANÇA {change_flag}')
     return _component_func2(spec=fig.to_json(), change_flag=change_flag, rangeslider=rangeslider, default="", key=key) # Default para evitar None enquanto carrega
-
 
 #placeholder_graph = st.empty() # se for utilizar while invés de st_autorefresh
 
@@ -619,6 +665,8 @@ def process_part(display_data, show_date_start, show_date_end, last_data_old, la
 
     data_inicial = inicio_trab_dia #datetime(year=dia_trab_periodo.year,month=dia_trab_periodo.month,day=dia_trab_periodo.day).replace(hour=inicio_trab_dia.hour,minute=inicio_trab_dia.minute,second=inicio_trab_dia.second,microsecond=inicio_trab_dia.microsecond)
     
+    print('> {} not in  {}?'.format(data_inicial,display_data['date'].values))
+    print('> {} - {}?'.format(display_data.loc[0, 'date'], data_inicial))
     if data_inicial not in display_data['date'].values and display_data.loc[0, 'date'] - data_inicial >= timedelta(seconds=1):# and data_inicial != inicio_trab_dia:
         print(f'\tADICIONANDO INI {data_inicial}')
         display_data.loc[len(display_data)] = [data_inicial,0]
@@ -1467,7 +1515,9 @@ def show_pause_button():
         # CRIAR BotÃO COM TEXTO ATUALIZADO
         text_pause = f'⏸️ Pausar' if not var_pause else f'▶️ RECARREGAR'
         container_pause_bt.button(text_pause,on_click=change_pause_state,args=(1 - var_pause,))
-        
+
+
+
 # Conectar ao MySQL
 # conn = mysql.connector.connect(
 #     host="192.168.100.74",
@@ -1484,10 +1534,10 @@ def show_pause_button():
 #########
 
 ######### PRECISA DO VPN
-host = "192.168.2.6"
-user = "tega"
-password = "yQPL2}X4K@y5H5@4(wWd"
-database = "produx"
+host = os.getenv("host")
+user = os.getenv("user")
+password = os.getenv("password")
+database = os.getenv("database")
 
 conn_args = {
     "user": user,
@@ -1497,8 +1547,7 @@ conn_args = {
 }
 ############
 
-print(password)
-engine = create_engine(f"mysql+mysqlconnector://",connect_args=conn_args)#{user}:{password}@{host}/{database}")# # (f"mysql+mysqlconnector://",connect_args=conn_args) 
+engine = create_engine(f"mysql+mysqlconnector://", connect_args=conn_args)#{user}:{password}@{host}/{database}")# # (f"mysql+mysqlconnector://",connect_args=conn_args) 
 
 # Definir período de análise
 datetime.today()
@@ -1507,6 +1556,7 @@ periodo_fim = "2025-03-14 14:00:00"
 
 read_date_ini = 'current_date()'
 read_date_fin = 'current_date()'
+
 
 if 'periodo_tempo' not in st.session_state:
     st.session_state['periodo_tempo'] = (datetime.today().date(),datetime.today().date())
@@ -1624,9 +1674,10 @@ def display_no_data(key='periodo_tempo'):
     st.markdown(f'''
         ## Sem Dados disponíveis entre {periodo_inicio.strftime('%d/%m/%Y')} até {(periodo_fim -  timedelta(days=1)).strftime('%d/%m/%Y')}
     ''')
-    st.date_input('Filtro Leitura',key='periodo_tempo')
+    st.date_input('Filtro Leitura',key='periodo_tempo',format='DD/MM/YYYY')
 
-TEST_MODE = False #True
+TEST_MODE = True #True
+
 
 #st.json(dados_intervalos)
 if periodo_inicio:
@@ -1650,6 +1701,11 @@ if periodo_inicio:
         periodo_inicio = datetime.now().date()
     if periodo_fim > datetime.now().date() + timedelta(days=1):
         periodo_fim = datetime.now().date() + timedelta(days=1)
+
+    if periodo_fim == datetime.now().date() + timedelta(days=1):
+        st.session_state['processing_today'] = True
+    else:
+        st.session_state['processing_today'] = False
 
     print(F'PERIODO FIM APÓS {periodo_fim}\n')
 
@@ -2068,6 +2124,10 @@ if periodo_inicio:
             st.markdown('**Tempo Excedente**') # minutos_extras
             st.markdown(f"<h1 style='text-align: center;'>{math.floor(minutos_extras / 60)}:{minutos_extras % 60:02}</h1>",unsafe_allow_html=True)
            
+
+        if st.button(':blue[?]',help='Visualizar Licenças Utilizadas'):
+            st.session_state['show_licenses'] = True
+            st.rerun()
             # Talvez utilizar:
             #  :blue[texto]  :red-background[texto exemplo].
             # Container não se adapta:
@@ -2078,7 +2138,7 @@ if periodo_inicio:
             # </div>''',unsafe_allow_html=True)
     with col2:
         st.markdown('## Indicativo de uso da linha de pintura da esteira no dia {} até {}'.format(periodo_inicio.strftime('%d/%m/%Y'),(periodo_fim-timedelta(days=1)).strftime('%d/%m/%Y')))
-        st.date_input('Filtro de Data de Leitura',key='periodo_tempo')
+        st.date_input('Filtro de Data de Leitura',key='periodo_tempo',format='DD/MM/YYYY')
 
         if fig is None: # MOSTRAR FIGURA VAZIA
             fig = go.Figure()
