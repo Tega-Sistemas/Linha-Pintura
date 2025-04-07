@@ -1,0 +1,10 @@
+mariadb
+streamlit
+streamlit-autorefresh
+mysql-connector-python
+SQLAlchemy
+#streamlit-plotly-events
+streamlit-plotly-mapbox-events
+dash
+python-dotenv
+st-theme
