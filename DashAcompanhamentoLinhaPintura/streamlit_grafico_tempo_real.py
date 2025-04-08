@@ -1559,7 +1559,7 @@ if periodo_inicio:
         
         # PERIDO DE TEMPO NÃO MUDOU E NÃO INCLUI DATA ATUAL
         else:
-            print('OP 3', st.session_state.get('last_processed_read_time'),st.session_state.get('last_read_time'))
+            # print('OP 3', st.session_state.get('last_processed_read_time'),st.session_state.get('last_read_time'))
             fig, percentPerHoraTrab, display_data = st.session_state.get('fig1')
             fig_bar, min_total, min_trab, percent_trab_geral, min_parado, minutos_ligados, minutos_extras = st.session_state.get('figbar')
 
