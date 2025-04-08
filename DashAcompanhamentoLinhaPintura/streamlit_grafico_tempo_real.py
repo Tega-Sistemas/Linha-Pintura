@@ -1,4 +1,3 @@
-#import mysql.connector
 import os
 import sys
 import copy
@@ -388,9 +387,9 @@ def get_intervalos_positivos_saidas(registros):
                 if not df_interval.empty and get_primeiro_do_dia(day,df_interval) < inicio_turno_dia:
                     new_first_values.append(get_primeiro_do_dia(day,df_interval) - timedelta(seconds=0.1))
 
-
+                # Ao menos dois valores no intervalo
                 if len(df_interval) > 2:
-                    # Encontrar subintervalos onde perOcup > 2 e perOcup <= 2
+                    # Encontrar subintervalos onde perOcup > {TOLERANCIA_ATIVO} e perOcup <= {TOLERANCIA_ATIVO}
                     occupied, empty, last_value = find_intervals_above_threshold(df_interval)
                     all_occupied_intervals.extend(occupied)
                     all_empty_intervals.extend(empty)
@@ -854,7 +853,7 @@ def create_graph(display_data,show_date_start,show_date_end):
         offset=df_yellow_bar['offset'],
         marker_color="yellow",
         hoverinfo='skip',
-        name='Leitura < 2%',
+        name=f'Leitura < {TOLERANCIA_ATIVO}%',
         opacity=0.3
     ))
 
@@ -881,7 +880,7 @@ def create_graph(display_data,show_date_start,show_date_end):
         width=df_purple_bar['to'],
         offset=df_purple_bar['offset'],
         marker_color="mediumpurple",
-        name='Ativo Extra',
+        name='Trabalhando Extra',
         hoverinfo='skip',
         opacity=0.3
     ))
@@ -909,7 +908,7 @@ def create_graph(display_data,show_date_start,show_date_end):
         width=df_green_bar['to'],
         offset=df_green_bar['offset'],
         marker_color="green",
-        name='Ativo',
+        name='Trabalhando',
         hoverinfo='skip',
         opacity=0.3
     ))
@@ -938,7 +937,6 @@ def create_graph(display_data,show_date_start,show_date_end):
         rangeslider={"visible":True}  # Adiciona um rangeslider para facilitar o zoom
     )
     return fig, percentPerHoraTrab, display_data
-
 
 def create_bar_graph(display_data,show_date_start,show_date_end):
     minutos_extras = 0
@@ -1053,7 +1051,7 @@ def create_bar_graph(display_data,show_date_start,show_date_end):
         x= result.index,
         y= -result['media_perOcup_ativo'],
         base=0,
-        name='Média % Ocupação Ativa',
+        name='Média % Ocupação Trabalhando',
         marker_color='blue',
         offset=-1000000,
         width=bar_width*3,
@@ -1067,7 +1065,7 @@ def create_bar_graph(display_data,show_date_start,show_date_end):
     fig_bar.add_trace(go.Bar(
         x=result.index,
         y=result['percent_tempo_inativo_seg'],
-        name='Tempo Inativo (% de hora)',
+        name='Tempo Desligado (% de hora)',
         marker_color='red',
         offset=-1000000,
         opacity=0.3,#,
@@ -1075,11 +1073,11 @@ def create_bar_graph(display_data,show_date_start,show_date_end):
         width=width_inativo
     ))
 
-    # Adicione as barras para o tempo ativo com ocupação < 2%
+    # Adicione as barras para o tempo ativo com ocupação < {TOLERANCIA_ATIVO}%
     fig_bar.add_trace(go.Bar(
         x=result.index,
         y=result['percent_tempo_ativo_menor_2_seg'],
-        name='Tempo Ativo <2% (% de hora)',
+        name=f'Tempo Ligado < {TOLERANCIA_ATIVO}% (% de hora)',
         marker_color='yellow',
         hovertemplate='%{y:.2f} % (%{x})   <extra></extra>',
         offset=-0,
@@ -1091,7 +1089,7 @@ def create_bar_graph(display_data,show_date_start,show_date_end):
     fig_bar.add_trace(go.Bar(
         x=result.index,
         y=result['percent_tempo_ativo_maior_2_seg'],
-        name='Tempo Ativo >2% (% de hora)',
+        name=f'Tempo Trabalhando > {TOLERANCIA_ATIVO}% (% de hora)',
         marker_color='green',
         hovertemplate='%{y:.2f} % (%{x})   <extra></extra>',
         offset=1000000,
@@ -1406,12 +1404,10 @@ if periodo_inicio:
             st.session_state['last_dates'] = [periodo_inicio, periodo_fim]
             st.session_state['last_process'] = display_data
             st.session_state['last_processed_read_time'] = st.session_state.get('last_read_time')
-
         # Periodo de tempo não mudou porém contém data atual, então calcular para novos valores e juntar com gráficos antigos
         elif TEST_MODE or periodo_inicio <= datetime.now().date() <= periodo_fim - timedelta(days=1) and st.session_state.get('last_processed_read_time') != st.session_state.get('last_read_time'):#not st.session_state.get('last_process',pd.DataFrame()).equals(display_data):
             # print('OP 2')
             # Cálcular intervalos não processados e mesclar com antigos
-            
             last_read_time = st.session_state.get('last_processed_read_time')
 
             # CONSULTAR sql OU JÁ CONSULTAR NO ANTERIOR ?
@@ -1452,7 +1448,6 @@ if periodo_inicio:
                 st.session_state['last_read_time'] = last_read['LinhaPinturaUtilizacaoDtHr'].iloc[-1]
                 st.session_state['last_processed_read_time'] = st.session_state.get('last_read_time')    
                 st.session_state['last_process'] = pd.DataFrame(display_data)
-
 
                 # PARA GRÁFICO 1
                 fig, percentPerHoraTrab, display_data = st.session_state.get('fig1')
@@ -1608,7 +1603,7 @@ if periodo_inicio:
             #st.markdown(f'{min_total} - {minutos_desativados}')
             st.markdown(f"<h1 style='text-align: center;'>{math.floor(minutos_ligados / 60)}:{minutos_ligados % 60:02}</h1>",unsafe_allow_html=True)
         with st.container(border=True):
-            st.markdown('**Tempo Desativado:**') # color: red; background-color:powderblue;
+            st.markdown('**Tempo Desligado:**') # color: red; background-color:powderblue;
             #color: red; background-color:lightgray;
             st.markdown(f"<h1 style='text-align: center;'>{math.floor(minutos_desativados / 60)}:{minutos_desativados % 60:02}</h1>",unsafe_allow_html=True)
         with st.container(border=True):

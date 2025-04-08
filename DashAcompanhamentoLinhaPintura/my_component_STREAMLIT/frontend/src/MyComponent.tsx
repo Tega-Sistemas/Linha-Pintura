@@ -116,7 +116,7 @@ const handleLegendClick = (eventData: any) => {
       localStorage.setItem('showLegend',JSON.stringify(last_a));
   }
 
-    setForceUpdate(prev => 1 - prev);
+    setForceUpdate((prev: number) => 1 - prev);
   return false;
   };
   // Não deve funcionar por legendclick retornar false 
@@ -206,7 +206,7 @@ const handleLegendClick = (eventData: any) => {
     console.log('CARREGAR LEGENDA: ',saved_showLegend_load)
     if (data.length > 1){
       saved_showLegend_load.forEach((legendVisible:any, index:number) => {
-          if (legendVisible === true || legendVisible === 'legendonly'){
+          if (data[index] && (legendVisible === true || legendVisible === 'legendonly')){
             if ('visible' in data[index]){
               data[index]['visible'] = legendVisible
             } else {

@@ -2,3 +2,4 @@
 */logs
 */logfiles
 */.venv
+DashAcompanhamentoLinhaPintura/my_component_STREAMLIT/frontend/node_modules/**
