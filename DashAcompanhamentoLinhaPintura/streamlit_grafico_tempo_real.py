@@ -17,7 +17,7 @@ from dotenv import load_dotenv,find_dotenv
 from datetime import datetime, timedelta
 from threading import Thread
 import streamlit.components.v1 as components
-from streamlit_theme import st_theme
+#from streamlit_theme import st_theme
 
 load_dotenv(find_dotenv())
 st.set_page_config(layout='wide')
@@ -25,7 +25,7 @@ espaco_vazio = st.empty()
 
 # ESCONDER HEADER/BARRA do streamlit e link âncora dos títulos, também diminuído tamanho do container onde fica o site
 with espaco_vazio:
-    theme_info = st_theme(adjust=False)
+    #theme_info = st_theme(adjust=False)
     st.markdown('''<style>
                 header {visibility: hidden;}
                 .block-container {
@@ -37,11 +37,6 @@ with espaco_vazio:
                 [data-testid='stHeaderActionElements'] {display: none;}
                 </style>''',
                 unsafe_allow_html=True) 
-
-if theme_info:
-    theme_font = theme_info['font']
-else:
-    theme_font = 'Segoe UI'
 
 # Checar se estava processando dia atual mas passou para outra data
 
@@ -925,7 +920,7 @@ def create_graph(display_data,show_date_start,show_date_end):
         legend=dict(
                 font=dict(
                     size=18,  # Tamanho da fonte
-                    family=theme_font#,  # Família da fonte (opcional)
+                    # family=theme_font#,  # Família da fonte (opcional)
                 )
             )
     )
@@ -1113,7 +1108,7 @@ def create_bar_graph(display_data,show_date_start,show_date_end):
         legend=dict(
                 font=dict(
                     size=18,  # Tamanho da fonte
-                    family=theme_font,  # Família da fonte (opcional)
+                    # family=theme_font,  # Família da fonte (opcional)
                 )
             )
     )
@@ -1641,7 +1636,7 @@ if periodo_inicio:
                 legend=dict(
                         font=dict(
                             size=18,  # Tamanho da fonte
-                            family=theme_font,  # Família da fonte (opcional)
+                            # family=theme_font,  # Família da fonte (opcional)
                         )
                     )
             )
@@ -1674,7 +1669,7 @@ if periodo_inicio:
                     legend=dict(
                             font=dict(
                                 size=18,  # Tamanho da fonte
-                                family=theme_font,  # Família da fonte (opcional)
+                                # family=theme_font,  # Família da fonte (opcional)
                             )
                         )
                 )

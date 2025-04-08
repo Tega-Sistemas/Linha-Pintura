@@ -3,8 +3,8 @@ primaryColor = "#FF4B4B"  # Cor principal (botões, sliders, etc.)
 backgroundColor = "#313338"  # Cor de fundo da página
 secondaryBackgroundColor = "#6b6a6a"  # Cor de fundo dos widgets (caixas, gráficos, etc.)
 textColor = "#FFFFFF"  # Cor do texto principal
-font = "Segoe UI"  # Fonte usada (opções: "sans serif", "serif", "monospace")
-
+font = "-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue"  # Fonte usada (opções: "sans serif", "serif", "monospace")
+base="dark"
 
 linkColor = "5c8aff"
 borderColor = "#6b6a6a"

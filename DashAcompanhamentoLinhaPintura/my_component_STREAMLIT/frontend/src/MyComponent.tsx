@@ -241,11 +241,13 @@ const handleLegendClick = (eventData: any) => {
       } else {
         plotLayout['font'] = {'color': textColor, 'family': bodyFont}//'black'}
       }
+      plotLayout['legend']['font'] = {...plotLayout.legend.font, 'family':bodyFont}
     }
 
     //   //plotLayout['modebar'] = { color: 'lightgray', activecolor: 'white',bgcolor: 'rgba(0, 0, 0, 0.7)' };
     plotLayout['modebar'] = { color: 'darkgray', activecolor: 'white' ,bgcolor: 'rgba(0 0, 0, 0.7)'};
-    plotLayout['legend'] = {...plotLayout.legend, 'itemdoubleclick':false} 
+    plotLayout['legend'] = {...plotLayout.legend, 'itemdoubleclick':false}
+    
     console.log('layout', plotLayout)
     console.log('data', data)
     // console.log('ARRAY DAS LEGENDAS', saved_showLegend_load)
