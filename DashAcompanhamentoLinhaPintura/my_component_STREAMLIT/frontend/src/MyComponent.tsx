@@ -1,7 +1,13 @@
 import React, { useState,useEffect } from "react"
 import { withStreamlitConnection, Streamlit, ComponentProps, Theme } from "streamlit-component-lib"
 import Plot from "react-plotly.js"
+// import * as Plotly from 'plotly.js'
+// import * as csDictionary from 'plotly.js/lib/locales/pt-br.js';
+//import Plotly from "plotly.js-dist";
+//import 'plotly.js/dist/plotly-locale-pt-br.js'
 
+
+//<script src="plotly-locale-pt-br.js"></script>
 
 function MyComponent(props: ComponentProps) {
   const [forceUpdate, setForceUpdate] = useState(0);
@@ -259,6 +265,7 @@ const handleLegendClick = (eventData: any) => {
         config={{
           'showLink': false,
           'displaylogo': false,
+          //'locale': 'pt-br',
           'showTips':false,
           'modeBarButtonsToRemove': ['resetScale2d','lasso2d','select2d'],
           'toImageButtonOptions': {
