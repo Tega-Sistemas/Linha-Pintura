@@ -1480,13 +1480,13 @@ if periodo_inicio:
                 maior_valor_old = np.datetime64(datetime.min)
                 lista_origem_old = -1
                 
-                if fig.data[1].x and maior_valor_old < fig.data[1].x[-1]:
+                if len(fig.data[1].x) and maior_valor_old < fig.data[1].x[-1]:
                     maior_valor_old = fig.data[1].x[-1]
                     lista_origem_old = 1
-                if fig.data[2].x and maior_valor_old < fig.data[2].x[-1]:
+                if len(fig.data[2].x) and maior_valor_old < fig.data[2].x[-1]:
                     maior_valor_old = fig.data[2].x[-1]
                     lista_origem_old = 2
-                if fig.data[2].x and maior_valor_old < fig.data[5].x[-1]:
+                if len(fig.data[5].x) and maior_valor_old < fig.data[5].x[-1]:
                     maior_valor_old = fig.data[5].x[-1]
                     lista_origem_old = 5
 
